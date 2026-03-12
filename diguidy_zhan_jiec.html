@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>递归调用动画 - 阶乘</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    text-align:center;
+    background:#f2f2f2;
+}
+
+h2{
+    margin-top:20px;
+}
+
+#controls{
+    margin:20px;
+}
+
+button{
+    padding:8px 16px;
+    margin:5px;
+}
+
+#stack{
+    width:300px;
+    margin:20px auto;
+    border:2px solid #444;
+    min-height:300px;
+    display:flex;
+    flex-direction:column-reverse;
+    background:white;
+}
+
+.frame{
+    border-top:1px solid #aaa;
+    padding:10px;
+    background:#6aa9ff;
+    color:white;
+    font-weight:bold;
+}
+
+.return{
+    background:#4CAF50;
+}
+
+#result{
+    font-size:22px;
+    margin-top:20px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>递归调用过程动画（阶乘）</h2>
+
+<div id="controls">
+n = <input type="number" id="n" value="5" min="1" max="10">
+<button onclick="start()">开始</button>
+<button onclick="reset()">重置</button>
+</div>
+
+<h3>调用栈 (Call Stack)</h3>
+
+<div id="stack"></div>
+
+<div id="result"></div>
+
+<script>
+
+let steps=[]
+let stack=[]
+let result=1
+
+function factorialSteps(n){
+
+    if(n===1){
+        steps.push({type:"call",value:1})
+        steps.push({type:"return",value:1})
+        return
+    }
+
+    steps.push({type:"call",value:n})
+
+    factorialSteps(n-1)
+
+    steps.push({type:"return",value:n})
+}
+
+function renderStack(){
+
+    const stackDiv=document.getElementById("stack")
+    stackDiv.innerHTML=""
+
+    stack.forEach(f=>{
+        const d=document.createElement("div")
+        d.className="frame"
+        d.innerText=f
+        stackDiv.appendChild(d)
+    })
+}
+
+async function play(){
+
+    result=1
+
+    for(const s of steps){
+
+        await new Promise(r=>setTimeout(r,800))
+
+        if(s.type==="call"){
+
+            stack.push("factorial("+s.value+")")
+
+        }
+
+        else{
+
+            const top=stack.pop()
+
+            result*=s.value
+
+            const d=document.createElement("div")
+            d.className="frame return"
+            d.innerText=top+" → return "+result
+
+            document.getElementById("stack").appendChild(d)
+
+            await new Promise(r=>setTimeout(r,600))
+
+        }
+
+        renderStack()
+    }
+
+    document.getElementById("result").innerText=
+        "最终结果: "+result
+}
+
+function start(){
+
+    reset()
+
+    const n=parseInt(document.getElementById("n").value)
+
+    steps=[]
+
+    factorialSteps(n)
+
+    play()
+}
+
+function reset(){
+
+    steps=[]
+    stack=[]
+    result=1
+
+    document.getElementById("stack").innerHTML=""
+    document.getElementById("result").innerText=""
+}
+
+</script>
+
+</body>
+</html>

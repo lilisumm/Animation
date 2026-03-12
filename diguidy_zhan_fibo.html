@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>斐波那契递归调用栈动画</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    background:#f5f5f5;
+    text-align:center;
+}
+
+#controls{
+    margin:20px;
+}
+
+button{
+    padding:8px 14px;
+    margin:5px;
+}
+
+#container{
+    display:flex;
+    justify-content:center;
+    margin-top:20px;
+}
+
+#stackArea{
+
+    width:250px;
+    margin-right:60px;
+}
+
+#stack{
+
+    border:3px solid #333;
+    height:400px;
+    display:flex;
+    flex-direction:column-reverse;
+    padding:10px;
+}
+
+.stackItem{
+
+    background:#64b5f6;
+    margin:4px;
+    padding:8px;
+    border-radius:6px;
+    color:white;
+}
+
+.returnItem{
+    background:#e57373;
+}
+
+#tree{
+
+    position:relative;
+    width:600px;
+    height:450px;
+}
+
+.node{
+
+    position:absolute;
+    padding:6px 10px;
+    background:#81c784;
+    border-radius:6px;
+    font-weight:bold;
+}
+
+.active{
+    background:#ffb74d;
+}
+
+svg{
+    position:absolute;
+    width:100%;
+    height:100%;
+}
+
+line{
+    stroke:#555;
+    stroke-width:2;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>斐波那契递归调用栈动画</h2>
+
+<div id="controls">
+
+n = <input type="number" id="n" value="5" min="1" max="8">
+
+<button onclick="start()">开始</button> <button onclick="pause()">暂停</button> <button onclick="step()">单步</button> <button onclick="reset()">重置</button>
+
+</div>
+
+<div id="container">
+
+<div id="stackArea">
+
+<h3>调用栈</h3>
+
+<div id="stack"></div>
+
+</div>
+
+<div id="tree">
+
+<svg id="lines"></svg>
+
+</div>
+
+</div>
+
+<script>
+
+let steps=[]
+let index=0
+let timer=null
+
+function fibSteps(n,x,y,offset,id){
+
+    steps.push({type:"call",n,id,x,y})
+
+    if(n<=1){
+
+        steps.push({type:"return",n,id})
+
+        return
+    }
+
+    fibSteps(n-1,x-offset,y+80,offset/2,id+"L")
+
+    fibSteps(n-2,x+offset,y+80,offset/2,id+"R")
+
+    steps.push({type:"return",n,id})
+}
+
+let nodes={}
+
+function drawNode(n,x,y,id){
+
+    const div=document.createElement("div")
+
+    div.className="node"
+
+    div.innerText="fib("+n+")"
+
+    div.style.left=x+"px"
+    div.style.top=y+"px"
+
+    document.getElementById("tree").appendChild(div)
+
+    nodes[id]=div
+}
+
+function drawEdge(x1,y1,x2,y2){
+
+    const line=document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "line"
+    )
+
+    line.setAttribute("x1",x1)
+    line.setAttribute("y1",y1)
+
+    line.setAttribute("x2",x2)
+    line.setAttribute("y2",y2)
+
+    document.getElementById("lines").appendChild(line)
+}
+
+function pushStack(text){
+
+    const div=document.createElement("div")
+
+    div.className="stackItem"
+
+    div.innerText=text
+
+    document.getElementById("stack").appendChild(div)
+}
+
+function popStack(){
+
+    const stack=document.getElementById("stack")
+
+    if(stack.lastChild)
+        stack.removeChild(stack.lastChild)
+}
+
+function runStep(){
+
+    if(index>=steps.length){
+        clearInterval(timer)
+        return
+    }
+
+    const s=steps[index]
+
+    if(s.type==="call"){
+
+        drawNode(s.n,s.x,s.y,s.id)
+
+        pushStack("fib("+s.n+")")
+
+    }
+
+    if(s.type==="return"){
+
+        popStack()
+
+        const node=nodes[s.id]
+
+        if(node) node.classList.add("active")
+
+    }
+
+    index++
+}
+
+function start(){
+
+    reset()
+
+    const n=parseInt(
+        document.getElementById("n").value
+    )
+
+    const center=300
+
+    fibSteps(n,center,30,120,"root")
+
+    timer=setInterval(runStep,700)
+
+}
+
+function pause(){
+    clearInterval(timer)
+}
+
+function step(){
+    runStep()
+}
+
+function reset(){
+
+    clearInterval(timer)
+
+    steps=[]
+    index=0
+    nodes={}
+
+    document.getElementById("stack").innerHTML=""
+
+    document.getElementById("tree").innerHTML=
+    '<svg id="lines"></svg>'
+}
+
+</script>
+
+</body>
+</html>
