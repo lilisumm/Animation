@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Permutation Recursion Animation</title>
+
+<style>
+
+body{
+    font-family: Arial;
+    display:flex;
+    gap:40px;
+}
+
+#tree{
+    width:60%;
+}
+
+#output{
+    width:40%;
+    border-left:2px solid #ccc;
+    padding-left:20px;
+}
+
+.node{
+    padding:6px 10px;
+    border-radius:6px;
+    background:#e8f3ff;
+    display:inline-block;
+    margin:4px;
+}
+
+.active{
+    background:#ffcc80;
+}
+
+.outputLine{
+    font-size:20px;
+    margin:8px 0;
+}
+
+button{
+    margin-top:20px;
+    margin-right:10px;
+    padding:8px 14px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="tree">
+
+<h2>全排列递归调用树</h2>
+
+<div id="n0" class="node">Perm(0,2) 369</div>
+
+<div style="margin-left:40px">
+
+<div id="n1" class="node">Perm(1,2) 369</div>
+
+<div style="margin-left:40px">
+<div id="n2" class="node">Perm(2,2) 369</div>
+<div id="n3" class="node">Perm(2,2) 396</div>
+</div>
+
+</div>
+
+<div style="margin-left:40px">
+
+<div id="n4" class="node">Perm(1,2) 639</div>
+
+<div style="margin-left:40px">
+<div id="n5" class="node">Perm(2,2) 639</div>
+<div id="n6" class="node">Perm(2,2) 693</div>
+</div>
+
+</div>
+
+<div style="margin-left:40px">
+
+<div id="n7" class="node">Perm(1,2) 963</div>
+
+<div style="margin-left:40px">
+<div id="n8" class="node">Perm(2,2) 963</div>
+<div id="n9" class="node">Perm(2,2) 936</div>
+</div>
+
+</div>
+
+<br>
+
+<button onclick="start()">开始动画</button>
+<button onclick="stepForward()">单步执行</button>
+<button onclick="reset()">重置</button>
+
+</div>
+
+<div id="output">
+
+<h2>输出排列</h2>
+
+<div id="result"></div>
+
+</div>
+
+
+<script>
+
+const steps = [
+
+{node:"n0"},
+{node:"n1"},
+{node:"n2",out:"369"},
+{node:"n3",out:"396"},
+{node:"n4"},
+{node:"n5",out:"639"},
+{node:"n6",out:"693"},
+{node:"n7"},
+{node:"n8",out:"963"},
+{node:"n9",out:"936"}
+
+];
+
+let step=0;
+let running=false;
+
+function highlight(id){
+
+document.querySelectorAll(".node")
+.forEach(n=>n.classList.remove("active"));
+
+document.getElementById(id).classList.add("active");
+
+}
+
+function addOutput(text){
+
+const div=document.createElement("div");
+div.className="outputLine";
+div.innerText=text;
+
+document.getElementById("result").appendChild(div);
+
+}
+
+function executeStep(){
+
+if(step>=steps.length) return;
+
+const s=steps[step];
+
+highlight(s.node);
+
+if(s.out){
+addOutput(s.out);
+}
+
+step++;
+
+}
+
+function runStep(){
+
+if(!running) return;
+
+executeStep();
+
+if(step<steps.length){
+setTimeout(runStep,1200);
+}
+
+}
+
+function start(){
+
+running=true;
+runStep();
+
+}
+
+function stepForward(){
+
+running=false;
+executeStep();
+
+}
+
+function reset(){
+
+running=false;
+step=0;
+
+document.getElementById("result").innerHTML="";
+
+document.querySelectorAll(".node")
+.forEach(n=>n.classList.remove("active"));
+
+}
+
+</script>
+
+</body>
+</html>
