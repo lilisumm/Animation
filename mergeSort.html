@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>归并排序</title>
+<style>
+body { font-family: Arial; text-align: center; }
+
+.row { display: flex; justify-content: center; flex-wrap: wrap; }
+
+.segment {
+    display: flex;
+    border: 2px solid #999;
+    margin: 4px;
+    padding: 4px;
+    border-radius: 6px;
+}
+
+.active-seg { border: 3px solid red; }
+
+.box {
+    width: 34px;
+    height: 34px;
+    line-height: 34px;
+    margin: 2px;
+    border-radius: 4px;
+    background: lightgray;
+    position: relative;
+}
+
+/* 分段颜色 */
+.left { background: #cce5ff; }
+.right { background: #f8d7da; }
+
+/* 高亮 */
+.compare { background: yellow !important; }
+.selected { background: lightgreen !important; }
+
+/* 指针 */
+.pointer {
+    position: absolute;
+    bottom: -20px;
+    font-size: 16px;
+    font-weight: bold;
+}
+.pi { color: blue; }
+.pj { color: purple; }
+.pk { color: red; }
+
+.info { font-size: 20px; margin: 10px; }
+.tip { font-size: 18px; color: #333; margin: 10px; }
+
+button { margin: 10px; padding: 8px 15px; }
+</style>
+</head>
+
+<body>
+
+<h2>MergeSort</h2>
+
+<div id="info" class="info"></div>
+<div id="tip" class="tip"></div>
+
+<div>数组</div>
+<div id="arrayA" class="row"></div>
+
+<div>辅助数组</div>
+<div id="arrayB" class="row"></div>
+
+<button onclick="nextStep()">单步</button>
+<button onclick="autoPlay()">自动</button>
+
+<script>
+
+let a = [20,5,17,3,9,1,74,7,8,62,19,6,53,4,18,10,11,12,15,16];
+let n = a.length;
+
+let steps = [];
+let stepIndex = 0;
+
+// 记录
+function record(step){
+    steps.push(JSON.parse(JSON.stringify(step)));
+}
+
+// merge过程
+function merge(src, dst, l, m, r, s){
+    let i=l, j=m+1, k=l;
+
+    while(i<=m && j<=r){
+        record({s,src:[...src],dst:[...dst],l,m,r,i,j,k,
+            tip:`比较：${src[i]} vs ${src[j]}`});
+
+        if(src[i]<=src[j]){
+            dst[k]=src[i];
+            record({s,src:[...src],dst:[...dst],l,m,r,i,j,k,
+                sel:i, tip:`选择 ${src[i]} → 写入 d[${k}]`});
+            i++; k++;
+        }else{
+            dst[k]=src[j];
+            record({s,src:[...src],dst:[...dst],l,m,r,i,j,k,
+                sel:j, tip:`选择 ${src[j]} → 写入 d[${k}]`});
+            j++; k++;
+        }
+    }
+
+    while(i<=m){
+        dst[k]=src[i];
+        record({s,src:[...src],dst:[...dst],l,m,r,i,j,k,
+            sel:i, tip:`左剩余 ${src[i]} → 写入`});
+        i++; k++;
+    }
+
+    while(j<=r){
+        dst[k]=src[j];
+        record({s,src:[...src],dst:[...dst],l,m,r,i,j,k,
+            sel:j, tip:`右剩余 ${src[j]} → 写入`});
+        j++; k++;
+    }
+}
+
+// MergePass
+function mergePass(src,dst,s){
+    let i=0;
+    while(i<=n-2*s){
+        merge(src,dst,i,i+s-1,i+2*s-1,s);
+        i+=2*s;
+    }
+    if(i+s<n){
+        merge(src,dst,i,i+s-1,n-1,s);
+    }else{
+        for(let j=i;j<n;j++){
+            dst[j]=src[j];
+            record({s,src:[...src],dst:[...dst],l:i,m:i,r:j,
+                tip:`复制 ${src[j]}`});
+        }
+    }
+}
+
+// 模拟
+function simulate(){
+    let s=1;
+    let A=[...a];
+    let B=new Array(n).fill("");
+
+    while(s<n){
+        mergePass(A,B,s);
+        s*=2;
+        if(s>=n){
+            record({s,src:B,dst:B,tip:"完成排序"});
+            break;
+        }
+        mergePass(B,A,s);
+        s*=2;
+    }
+}
+
+// 渲染
+function render(){
+    let step=steps[stepIndex];
+
+    document.getElementById("info").innerText=`当前 s = ${step.s}`;
+    document.getElementById("tip").innerText=step.tip||"";
+
+    let aDiv=document.getElementById("arrayA");
+    let bDiv=document.getElementById("arrayB");
+
+    aDiv.innerHTML="";
+    bDiv.innerHTML="";
+
+    // a数组（分段）
+    for(let start=0;start<n;start+=step.s){
+        let seg=document.createElement("div");
+        seg.className="segment";
+
+        if(start>=step.l && start<=step.r)
+            seg.classList.add("active-seg");
+
+        for(let i=start;i<Math.min(start+step.s,n);i++){
+            let box=document.createElement("div");
+            box.className="box";
+
+            if(i>=step.l && i<=step.m) box.classList.add("left");
+            if(i>step.m && i<=step.r) box.classList.add("right");
+
+            if(i===step.i || i===step.j)
+                box.classList.add("compare");
+
+            if(i===step.sel)
+                box.classList.add("selected");
+
+            let label="";
+            if(i===step.i) label+=`<div class="pointer pi">i</div>`;
+            if(i===step.j) label+=`<div class="pointer pj">j</div>`;
+
+            box.innerHTML=step.src[i]+label;
+            seg.appendChild(box);
+        }
+
+        aDiv.appendChild(seg);
+    }
+
+    // b数组（显示k）
+    step.dst.forEach((v,idx)=>{
+        let box=document.createElement("div");
+        box.className="box";
+
+        let label="";
+        if(idx===step.k)
+            label=`<div class="pointer pk">k</div>`;
+
+        box.innerHTML=(v!==""?v:"")+label;
+        bDiv.appendChild(box);
+    });
+}
+
+// 控制
+function nextStep(){
+    if(stepIndex<steps.length-1){
+        stepIndex++;
+        render();
+    }
+}
+
+function autoPlay(){
+    let t=setInterval(()=>{
+        if(stepIndex>=steps.length-1) clearInterval(t);
+        else{
+            stepIndex++;
+            render();
+        }
+    },300);
+}
+
+// 初始化
+simulate();
+render();
+
+</script>
+
+</body>
+</html>
