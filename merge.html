@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Merge(c,d,l,m,r) 动画</title>
+<style>
+body { text-align: center; font-family: Arial; }
+
+.row { display: flex; justify-content: center; margin: 10px; }
+
+.box {
+    width: 45px; height: 45px;
+    line-height: 45px;
+    margin: 5px;
+    border-radius: 5px;
+    background: lightgray;
+    position: relative;
+}
+
+.left { background: lightblue; }
+.right { background: lightpink; }
+
+.active { background: orange; }
+
+.result { background: lightgreen; }
+
+.pointer {
+    position: absolute;
+    bottom: -18px;
+    width: 100%;
+    font-size: 12px;
+    color: red;
+}
+
+button { margin: 10px; padding: 8px 15px; }
+</style>
+</head>
+
+<body>
+
+<h2>Merge(c, d, l, m, r) 合并过程</h2>
+
+<div>数组 c（原始）</div>
+<div id="cArray" class="row"></div>
+
+<div>数组 d（结果）</div>
+<div id="dArray" class="row"></div>
+
+<button onclick="nextStep()">单步执行</button>
+<button onclick="autoPlay()">自动播放</button>
+
+<script>
+
+// 示例：c[l..m] 和 c[m+1..r] 已有序
+let c = [1, 5, 7, 2, 3, 6];
+let d = new Array(c.length).fill("");
+
+let l = 0, m = 2, r = 5;
+
+let i = l, j = m + 1, k = l;
+
+let steps = [];
+let stepIndex = 0;
+
+// 记录状态
+function record() {
+    steps.push({
+        c: [...c],
+        d: [...d],
+        i: i,
+        j: j,
+        k: k
+    });
+}
+
+// 模拟 merge
+function simulate() {
+
+    while (i <= m && j <= r) {
+        if (c[i] <= c[j]) {
+            d[k++] = c[i++];
+        } else {
+            d[k++] = c[j++];
+        }
+        record();
+    }
+
+    while (i <= m) {
+        d[k++] = c[i++];
+        record();
+    }
+
+    while (j <= r) {
+        d[k++] = c[j++];
+        record();
+    }
+}
+
+// 渲染
+function render() {
+    let step = steps[stepIndex];
+
+    let cDiv = document.getElementById("cArray");
+    let dDiv = document.getElementById("dArray");
+
+    cDiv.innerHTML = "";
+    dDiv.innerHTML = "";
+
+    // 渲染 c
+    step.c.forEach((v, idx) => {
+        let box = document.createElement("div");
+        box.className = "box";
+
+        if (idx >= l && idx <= m)
+            box.classList.add("left");
+        if (idx >= m+1 && idx <= r)
+            box.classList.add("right");
+
+        if (idx == step.i || idx == step.j)
+            box.classList.add("active");
+
+        let label = "";
+        if (idx == step.i) label += "i ";
+        if (idx == step.j) label += "j";
+
+        box.innerHTML = v + (label ? `<div class="pointer">${label}</div>` : "");
+
+        cDiv.appendChild(box);
+    });
+
+    // 渲染 d
+    step.d.forEach((v, idx) => {
+        let box = document.createElement("div");
+        box.className = "box result";
+
+        if (v !== "")
+            box.innerText = v;
+
+        if (idx == step.k)
+            box.innerHTML += `<div class="pointer">k</div>`;
+
+        dDiv.appendChild(box);
+    });
+}
+
+// 单步
+function nextStep() {
+    if (stepIndex < steps.length - 1) {
+        stepIndex++;
+        render();
+    }
+}
+
+// 自动播放
+function autoPlay() {
+    let timer = setInterval(() => {
+        if (stepIndex >= steps.length - 1) {
+            clearInterval(timer);
+        } else {
+            stepIndex++;
+            render();
+        }
+    }, 800);
+}
+
+// 初始化
+record();
+simulate();
+render();
+
+</script>
+
+</body>
+</html>
