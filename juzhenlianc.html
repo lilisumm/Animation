@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Matrix Chain DP Animation</title>
+<style>
+  body { font-family: Arial; text-align: center; }
+  table { border-collapse: collapse; margin: 20px auto; }
+  td {
+    width: 70px; height: 50px;
+    border: 1px solid #333;
+    text-align: center;
+    font-size: 16px;
+  }
+  .active { background: #ffd54f; }
+  .done { background: #81c784; }
+  .candidate { background: #64b5f6; }
+  button { padding: 10px 20px; font-size: 16px; }
+</style>
+</head>
+
+<body>
+
+<h2>矩阵连乘 DP 填表动画（5个矩阵）</h2>
+
+<p>
+A1: 30×35，
+A2: 35×15，
+A3: 15×5，
+A4: 5×10，
+A5: 10×20
+</p>
+
+<button onclick="nextStep()">下一步 ▶</button>
+
+<h3>m 表（最小代价）</h3>
+<table id="mTable"></table>
+
+<h3>s 表（划分位置）</h3>
+<table id="sTable"></table>
+
+<p id="info"></p>
+
+<script>
+let p = [30,35,15,5,10,20];
+let n = 5;
+
+// 初始为空
+let m = Array.from({length:n+1},()=>Array(n+1).fill(""));
+let s = Array.from({length:n+1},()=>Array(n+1).fill(""));
+
+let steps = [];
+
+// 生成步骤（但不提前填值）
+function generateSteps(){
+    // Step 1：填对角线
+    for(let i=1;i<=n;i++){
+        steps.push({
+            type:"init",
+            i:i,j:i,
+            text:`初始化：m[${i}][${i}] = 0`
+        });
+    }
+
+    // Step 2：DP过程
+    for(let r=2;r<=n;r++){
+        for(let i=1;i<=n-r+1;i++){
+            let j=i+r-1;
+
+            let best = Infinity;
+            let bestK = i;
+
+            for(let k=i;k<j;k++){
+                let left = (m[i][k]===""?0:m[i][k]);
+                let right = (m[k+1][j]===""?0:m[k+1][j]);
+
+                let cost = left + right + p[i-1]*p[k]*p[j];
+
+                steps.push({
+                    type:"try",
+                    i:i,j:j,k:k,
+                    cost:cost,
+                    text:`计算 m[${i}][${j}]：尝试 k=${k} → cost=${cost}`
+                });
+
+                if(cost < best){
+                    best = cost;
+                    bestK = k;
+                }
+            }
+
+            steps.push({
+                type:"set",
+                i:i,j:j,k:bestK,
+                cost:best,
+                text:`确定最优：m[${i}][${j}] = ${best}, s[${i}][${j}] = ${bestK}`
+            });
+        }
+    }
+}
+
+generateSteps();
+
+let stepIndex = 0;
+
+// 绘制表
+function drawTable(id, arr){
+    let table = document.getElementById(id);
+    table.innerHTML = "";
+
+    for(let i=1;i<=n;i++){
+        let tr = document.createElement("tr");
+        for(let j=1;j<=n;j++){
+            let td = document.createElement("td");
+            td.innerText = arr[i][j];
+            td.id = id+"-"+i+"-"+j;
+            tr.appendChild(td);
+        }
+        table.appendChild(tr);
+    }
+}
+
+drawTable("mTable", m);
+drawTable("sTable", s);
+
+// 清除高亮
+function clearHighlight(){
+    document.querySelectorAll("td").forEach(td=>{
+        td.classList.remove("active","candidate","done");
+    });
+}
+
+// 下一步
+function nextStep(){
+    if(stepIndex >= steps.length) return;
+
+    clearHighlight();
+
+    let step = steps[stepIndex];
+
+    let cellM = document.getElementById(`mTable-${step.i}-${step.j}`);
+    let cellS = document.getElementById(`sTable-${step.i}-${step.j}`);
+
+    // 初始化
+    if(step.type==="init"){
+        m[step.i][step.j] = 0;
+        cellM.innerText = 0;
+        cellM.classList.add("done");
+    }
+
+    // 尝试k
+    if(step.type==="try"){
+        cellM.classList.add("candidate");
+    }
+
+    // 确定最优
+    if(step.type==="set"){
+        m[step.i][step.j] = step.cost;
+        s[step.i][step.j] = step.k;
+
+        cellM.innerText = step.cost;
+        cellM.classList.add("done");
+
+        cellS.innerText = step.k;
+        cellS.classList.add("done");
+    }
+
+    document.getElementById("info").innerText = step.text;
+
+    stepIndex++;
+}
+</script>
+
+</body>
+</html>
