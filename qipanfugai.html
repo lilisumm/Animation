@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>棋盘覆盖（带复原）</title>
+<style>
+body { display:flex; font-family:Arial; }
+
+#board {
+    display:grid;
+    grid-template-columns:repeat(8,40px);
+    gap:2px;
+    margin:20px;
+}
+
+.cell {
+    width:40px;height:40px;
+    text-align:center;line-height:40px;
+    border:1px solid #ccc;
+}
+
+.special {
+    background:red!important;
+    color:#fff;font-weight:bold;
+}
+
+#tree {
+    margin:20px;
+    font-family:monospace;
+    white-space:pre;
+    max-height:600px;
+    overflow:auto;
+    border-left:3px solid #333;
+    padding-left:10px;
+}
+
+button { margin:10px; }
+</style>
+</head>
+<body>
+
+<div>
+    <div id="board"></div>
+    <button onclick="nextStep()">下一步</button>
+    <button onclick="resetAll()">复原</button>
+</div>
+
+<div id="tree"></div>
+
+<script>
+const size=8;
+const special={r:2,c:3};
+
+let board, tile, steps, stepIndex;
+
+const boardDiv=document.getElementById("board");
+const treeDiv=document.getElementById("tree");
+
+// 初始化棋盘
+function initBoard(){
+    boardDiv.innerHTML="";
+    for(let i=0;i<size;i++){
+        for(let j=0;j<size;j++){
+            let d=document.createElement("div");
+            d.className="cell";
+            d.id=`cell-${i}-${j}`;
+
+            if(i===special.r && j===special.c){
+                d.classList.add("special");
+                d.innerText="X";
+            }
+
+            boardDiv.appendChild(d);
+        }
+    }
+}
+
+// 颜色
+function color(t){
+    return `hsl(${t*50%360},70%,70%)`;
+}
+
+// 记录步骤
+function record(s){ steps.push(s); }
+
+// 分治
+function chessBoard(tr,tc,dr,dc,size,depth=0){
+    record({type:"call",tr,tc,dr,dc,size,depth});
+
+    if(size===1) return;
+
+    let t=tile++, s=size/2;
+    let cells=[];
+
+    if(!(dr<tr+s && dc<tc+s)) cells.push([tr+s-1,tc+s-1]);
+    if(!(dr<tr+s && dc>=tc+s)) cells.push([tr+s-1,tc+s]);
+    if(!(dr>=tr+s && dc<tc+s)) cells.push([tr+s,tc+s-1]);
+    if(!(dr>=tr+s && dc>=tc+s)) cells.push([tr+s,tc+s]);
+
+    record({type:"tile",cells,t});
+
+    // 递归
+    if(dr<tr+s && dc<tc+s)
+        chessBoard(tr,tc,dr,dc,s,depth+1);
+    else
+        chessBoard(tr,tc,tr+s-1,tc+s-1,s,depth+1);
+
+    if(dr<tr+s && dc>=tc+s)
+        chessBoard(tr,tc+s,dr,dc,s,depth+1);
+    else
+        chessBoard(tr,tc+s,tr+s-1,tc+s,s,depth+1);
+
+    if(dr>=tr+s && dc<tc+s)
+        chessBoard(tr+s,tc,dr,dc,s,depth+1);
+    else
+        chessBoard(tr+s,tc,tr+s,tc+s-1,s,depth+1);
+
+    if(dr>=tr+s && dc>=tc+s)
+        chessBoard(tr+s,tc+s,dr,dc,s,depth+1);
+    else
+        chessBoard(tr+s,tc+s,tr+s,tc+s,s,depth+1);
+}
+
+// 下一步
+function nextStep(){
+    if(stepIndex>=steps.length) return;
+
+    let s=steps[stepIndex++];
+
+    if(s.type==="call"){
+        treeDiv.innerText +=
+            "  ".repeat(s.depth) +
+            `chessBoard(${s.tr},${s.tc},${s.dr},${s.dc},${s.size})\n`;
+    }
+
+    if(s.type==="tile"){
+        s.cells.forEach(([r,c])=>{
+            let cell=document.getElementById(`cell-${r}-${c}`);
+            if(!cell.classList.contains("special")){
+                cell.style.background=color(s.t);
+                cell.innerText=s.t;
+            }
+        });
+    }
+}
+
+// ⭐ 复原函数（核心）
+function resetAll(){
+    // 重置变量
+    tile = 1;
+    steps = [];
+    stepIndex = 0;
+
+    // 清空UI
+    treeDiv.innerText = "";
+
+    // 重建棋盘
+    initBoard();
+
+    // 重新生成步骤
+    chessBoard(0,0,special.r,special.c,size);
+}
+
+// 初始化
+resetAll();
+</script>
+
+</body>
+</html>
