@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Partition 单步动画</title>
+<style>
+    body {
+        font-family: Arial;
+        text-align: center;
+        margin-top: 40px;
+    }
+
+    .array {
+        display: flex;
+        justify-content: center;
+        margin: 20px;
+        position: relative;
+    }
+
+    .cell {
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+        border: 2px solid #333;
+        margin: 5px;
+        font-size: 18px;
+        position: relative;
+        transition: all 0.3s;
+    }
+
+    .pivot {
+        background-color: #ffcc00;
+    }
+
+    .swap {
+        background-color: #ff6b6b;
+        color: white;
+    }
+
+    .arrow-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 10px;
+    }
+
+    .arrow {
+        width: 50px;
+        text-align: center;
+        margin: 5px;
+        font-size: 16px;
+        height: 30px;
+    }
+
+    .arrow i {
+        display: block;
+        font-style: normal;
+        font-weight: bold;
+    }
+
+    button {
+        padding: 10px 20px;
+        font-size: 16px;
+        margin: 10px;
+    }
+</style>
+</head>
+<body>
+
+<h2>QuickSort Partition（单步演示）</h2>
+
+
+<div class="array" id="array"></div>
+<div class="arrow-container" id="arrows"></div>
+
+<button onclick="nextStep()">下一步</button>
+<button onclick="reset()">重置</button>
+
+<script>
+let original = [16, 2, 8, 4, 15, 21, 97, 13,5,7,29,1];
+let arr, p, r, i, j, pivot;
+let state = "init";  // 控制步骤状态
+let swapIndices = [];
+
+function init() {
+    arr = [...original];
+    p = 0;
+    r = arr.length - 1;
+    i = p;
+    j = r + 1;
+    pivot = arr[p];
+    state = "move_i";
+    swapIndices = [];
+    render();
+}
+
+function render() {
+    const container = document.getElementById("array");
+    const arrowContainer = document.getElementById("arrows");
+
+    container.innerHTML = "";
+    arrowContainer.innerHTML = "";
+
+    arr.forEach((val, idx) => {
+        const div = document.createElement("div");
+        div.className = "cell";
+
+        if (idx === p) div.classList.add("pivot");
+        if (swapIndices.includes(idx)) div.classList.add("swap");
+
+        div.innerText = val;
+        container.appendChild(div);
+
+        // 箭头区域
+        const arrowDiv = document.createElement("div");
+        arrowDiv.className = "arrow";
+
+        if (idx === i) arrowDiv.innerHTML += "↑<i>i</i>";
+        if (idx === j) arrowDiv.innerHTML += "↑<i>j</i>";
+
+        arrowContainer.appendChild(arrowDiv);
+    });
+}
+
+function nextStep() {
+
+    swapIndices = [];
+
+    if (state === "move_i") {
+        i++;
+        if (i < r && arr[i] < pivot) {
+            render();
+        } else {
+            state = "move_j";
+            render();
+        }
+    }
+
+    else if (state === "move_j") {
+        j--;
+        if (arr[j] > pivot) {
+            render();
+        } else {
+            state = "check";
+            render();
+        }
+    }
+
+    else if (state === "check") {
+        if (i >= j) {
+            state = "final_swap";
+        } else {
+            state = "swap";
+        }
+        render();
+    }
+
+    else if (state === "swap") {
+        swapIndices = [i, j];
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+        state = "move_i";
+        render();
+    }
+
+    else if (state === "final_swap") {
+        swapIndices = [p, j];
+        [arr[p], arr[j]] = [arr[j], arr[p]];
+        state = "done";
+        render();
+    }
+
+    else if (state === "done") {
+        alert("Partition 完成！");
+    }
+}
+
+function reset() {
+    init();
+}
+
+init();
+</script>
+
+</body>
+</html>
