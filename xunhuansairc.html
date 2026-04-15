@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>循环赛日程表动画</title>
+<style>
+body { font-family: Arial; display:flex; }
+
+#board {
+    display:grid;
+    grid-template-columns: repeat(8, 40px);
+    gap:2px;
+    margin:20px;
+}
+
+.cell {
+    width:40px;height:40px;
+    border:1px solid #ccc;
+    text-align:center;
+    line-height:40px;
+    background:#f9f9f9;
+}
+
+.highlight {
+    background:orange!important;
+}
+
+button { margin:5px; }
+</style>
+</head>
+<body>
+
+<div>
+    <div id="board"></div>
+    <button onclick="nextStep()">下一步</button>
+    <button onclick="autoPlay()">自动播放</button>
+    <button onclick="resetAll()">复原</button>
+</div>
+
+<script>
+const n = 8;
+let table = [];
+let steps = [];
+let stepIndex = 0;
+let timer = null;
+
+const boardDiv = document.getElementById("board");
+
+// 初始化棋盘
+function initBoard(){
+    boardDiv.innerHTML = "";
+    table = Array.from({length:n},()=>Array(n).fill(""));
+
+    for(let i=0;i<n;i++){
+        for(let j=0;j<n;j++){
+            let d = document.createElement("div");
+            d.className="cell";
+            d.id=`cell-${i}-${j}`;
+            boardDiv.appendChild(d);
+        }
+    }
+}
+
+// 记录步骤
+function record(cells){
+    steps.push(cells);
+}
+
+// 生成步骤（分治过程）
+function generateSteps(){
+    table[0][0] = 1;
+    record([{i:0,j:0,val:1}]);
+
+    for(let k=1;k<n;k*=2){
+        for(let i=0;i<k;i++){
+            for(let j=0;j<k;j++){
+
+                let ops = [];
+
+                // 右上
+                ops.push({i:i,j:j+k,val:table[i][j]+k});
+
+                // 左下
+                ops.push({i:i+k,j:j,val:table[i][j]+k});
+
+                // 右下
+                ops.push({i:i+k,j:j+k,val:table[i][j]});
+
+                record(ops);
+            }
+        }
+
+        // 真正更新表
+        for(let i=0;i<k;i++){
+            for(let j=0;j<k;j++){
+                table[i][j+k] = table[i][j]+k;
+                table[i+k][j] = table[i][j]+k;
+                table[i+k][j+k] = table[i][j];
+            }
+        }
+    }
+}
+
+// 渲染一步
+function nextStep(){
+    if(stepIndex>=steps.length) return;
+
+    // 清除高亮
+    document.querySelectorAll(".cell").forEach(c=>c.classList.remove("highlight"));
+
+    let ops = steps[stepIndex++];
+
+    ops.forEach(op=>{
+        let cell = document.getElementById(`cell-${op.i}-${op.j}`);
+        cell.innerText = op.val;
+        cell.classList.add("highlight");
+    });
+}
+
+// 自动播放
+function autoPlay(){
+    if(timer) return;
+    timer = setInterval(()=>{
+        if(stepIndex>=steps.length){
+            clearInterval(timer);
+            timer=null;
+        } else {
+            nextStep();
+        }
+    }, 300);
+}
+
+// 重置
+function resetAll(){
+    stepIndex = 0;
+    steps = [];
+    clearInterval(timer);
+    timer=null;
+    initBoard();
+    generateSteps();
+}
+
+// 初始化
+resetAll();
+</script>
+
+</body>
+</html>
