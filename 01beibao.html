@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0-1背包动态规划填表动画</title>
+<style>
+    body {
+        margin: 0;
+        font-family: "Microsoft YaHei", sans-serif;
+        background: #f4f6f9;
+    }
+
+    .container {
+        display: flex;
+        height: 100vh;
+    }
+
+    .left-panel {
+        width: 55%;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow: auto;
+        border-right: 2px solid #ddd;
+        background: white;
+    }
+
+    .right-panel {
+        width: 45%;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        background: #fafafa;
+    }
+
+    h1 {
+        margin-top: 0;
+        font-size: 28px;
+        color: #222;
+    }
+
+    .info {
+        margin-bottom: 20px;
+        line-height: 1.8;
+        font-size: 16px;
+    }
+
+    table {
+        border-collapse: collapse;
+        margin-top: 10px;
+        width: 100%;
+    }
+
+    th, td {
+        border: 1px solid #999;
+        width: 70px;
+        height: 55px;
+        text-align: center;
+        font-size: 20px;
+        transition: all 0.4s ease;
+    }
+
+    th {
+        background: #e8eef7;
+        font-weight: bold;
+    }
+
+    td.active {
+        background: #ffd54f;
+        transform: scale(1.08);
+        font-weight: bold;
+    }
+
+    td.filled {
+        background: #90caf9;
+        color: #000;
+    }
+
+    .step-box {
+        background: white;
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    .formula {
+        margin-top: 10px;
+        padding: 10px;
+        background: #f1f5ff;
+        border-left: 4px solid #4a6cf7;
+        line-height: 1.8;
+        font-size: 17px;
+    }
+
+    .controls {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+    }
+
+    button {
+        padding: 10px 18px;
+        border: none;
+        border-radius: 8px;
+        background: #4a6cf7;
+        color: white;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    button:hover {
+        background: #3558d6;
+    }
+
+    .highlight {
+        color: #d84315;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="left-panel">
+        <h1>0-1背包动态规划填表动画</h1>
+
+        <div class="info">
+            <div><strong>n = 4</strong></div>
+            <div><strong>C = 8</strong></div>
+            <div>w = [0, 2, 3, 4, 5]</div>
+            <div>v = [0, 3, 4, 5, 6]</div>
+            <div style="margin-top:10px;">
+                m[i][j] 表示：前 i 个物品在容量 j 下的最大价值
+            </div>
+        </div>
+
+        <table id="dpTable"></table>
+
+        <div class="controls">
+            <button onclick="startAnimation()">开始动画</button>
+            <button onclick="nextStep()">下一步</button>
+            <button onclick="resetTable()">重置</button>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <h1>状态转移过程</h1>
+        <div id="log"></div>
+    </div>
+
+</div>
+
+<script>
+
+const n = 4;
+const C = 8;
+const w = [0, 2, 3, 4, 5];
+const v = [0, 3, 4, 5, 6];
+
+const m = Array.from({length: n + 1}, () => Array(C + 1).fill(0));
+
+const table = document.getElementById("dpTable");
+const logDiv = document.getElementById("log");
+
+let steps = [];
+let currentStep = 0;
+let timer = null;
+
+function buildTable() {
+
+    table.innerHTML = "";
+
+    const header = document.createElement("tr");
+
+    const empty = document.createElement("th");
+    empty.innerText = "m[i][j]";
+    header.appendChild(empty);
+
+    for(let j = 0; j <= C; j++) {
+        const th = document.createElement("th");
+        th.innerText = j;
+        header.appendChild(th);
+    }
+
+    table.appendChild(header);
+
+    for(let i = 0; i <= n; i++) {
+
+        const row = document.createElement("tr");
+
+        const rowHead = document.createElement("th");
+        rowHead.innerText = i;
+        row.appendChild(rowHead);
+
+        for(let j = 0; j <= C; j++) {
+            const td = document.createElement("td");
+            td.id = `cell-${i}-${j}`;
+            td.innerText = "";
+            row.appendChild(td);
+        }
+
+        table.appendChild(row);
+    }
+}
+
+function generateSteps() {
+
+    steps = [];
+
+    for(let j = 0; j <= C; j++) {
+        steps.push({
+            i: 0,
+            j,
+            value: 0,
+            text: `边界条件：m[0][${j}] = 0（没有物品可选）`
+        });
+    }
+
+    for(let i = 1; i <= n; i++) {
+
+        steps.push({
+            i,
+            j: 0,
+            value: 0,
+            text: `边界条件：m[${i}][0] = 0（背包容量为0）`
+        });
+
+        for(let j = 1; j <= C; j++) {
+
+            if(w[i] > j) {
+
+                m[i][j] = m[i-1][j];
+
+                steps.push({
+                    i,
+                    j,
+                    value: m[i][j],
+                    text:
+                    `当前计算 m[${i}][${j}]<br><br>` +
+                    `物品 ${i} 的重量 w[${i}] = ${w[i]} > ${j}，无法放入背包。<br><br>` +
+                    `<div class="formula">` +
+                    `m[${i}][${j}] = m[${i-1}][${j}] = ${m[i-1][j]}` +
+                    `</div>`
+                });
+            }
+            else {
+
+                const notChoose = m[i-1][j];
+                const choose = m[i-1][j-w[i]] + v[i];
+
+                m[i][j] = Math.max(notChoose, choose);
+
+                steps.push({
+                    i,
+                    j,
+                    value: m[i][j],
+                    text:
+                    `当前计算 m[${i}][${j}]<br><br>` +
+                    `物品 ${i} 可以放入背包：<br><br>` +
+                    `不选第 ${i} 个物品：m[${i-1}][${j}] = ${notChoose}<br><br>` +
+                    `选择第 ${i} 个物品：<br>` +
+                    `m[${i-1}][${j-w[i]}] + v[${i}]<br>` +
+                    `= ${m[i-1][j-w[i]]} + ${v[i]} = ${choose}<br><br>` +
+                    `<div class="formula">` +
+                    `m[${i}][${j}] = max(${notChoose}, ${choose}) = ` +
+                    `<span class="highlight">${m[i][j]}</span>` +
+                    `</div>`
+                });
+            }
+        }
+    }
+}
+
+function clearHighlight() {
+    const cells = document.querySelectorAll("td");
+    cells.forEach(cell => cell.classList.remove("active"));
+}
+
+function nextStep() {
+
+    if(currentStep >= steps.length) {
+        clearInterval(timer);
+        return;
+    }
+
+    clearHighlight();
+
+    const step = steps[currentStep];
+
+    const cell = document.getElementById(`cell-${step.i}-${step.j}`);
+
+    cell.innerText = step.value;
+    cell.classList.add("filled");
+    cell.classList.add("active");
+
+    const box = document.createElement("div");
+    box.className = "step-box";
+    box.innerHTML = `
+        <strong>Step ${currentStep + 1}</strong><br><br>
+        ${step.text}
+    `;
+
+    logDiv.prepend(box);
+
+    currentStep++;
+}
+
+function startAnimation() {
+
+    clearInterval(timer);
+
+    timer = setInterval(() => {
+        nextStep();
+
+        if(currentStep >= steps.length) {
+            clearInterval(timer);
+        }
+    }, 1200);
+}
+
+function resetTable() {
+
+    clearInterval(timer);
+
+    currentStep = 0;
+
+    logDiv.innerHTML = "";
+
+    for(let i = 0; i <= n; i++) {
+        for(let j = 0; j <= C; j++) {
+            const cell = document.getElementById(`cell-${i}-${j}`);
+            cell.innerText = "";
+            cell.classList.remove("filled");
+            cell.classList.remove("active");
+        }
+    }
+}
+
+buildTable();
+generateSteps();
+
+</script>
+
+</body>
+</html>
