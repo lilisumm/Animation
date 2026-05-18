@@ -1,0 +1,374 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>部分背包问题动画</title>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f4f6f9;
+        text-align: center;
+        padding: 20px;
+    }
+
+    h1 {
+        color: #333;
+    }
+
+    .container {
+        width: 1000px;
+        margin: auto;
+    }
+
+    .items {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 30px;
+        margin-bottom: 40px;
+    }
+
+    .item {
+        width: 160px;
+        height: 120px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: 1s;
+        position: relative;
+    }
+
+    .item.active {
+        transform: translateY(-15px);
+        background: #d1f0ff;
+    }
+
+    .item.taken {
+        opacity: 0.5;
+    }
+
+    .ratio {
+        color: #0077cc;
+        font-weight: bold;
+    }
+
+    .bag-section {
+        margin-top: 40px;
+    }
+
+    .bag {
+        width: 700px;
+        height: 80px;
+        border: 4px solid #444;
+        margin: auto;
+        border-radius: 10px;
+        background: white;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #4CAF50, #81C784);
+        transition: width 1s;
+    }
+
+    .info {
+        margin-top: 30px;
+        font-size: 22px;
+        color: #333;
+    }
+
+    .log {
+        margin-top: 30px;
+        width: 800px;
+        margin-left: auto;
+        margin-right: auto;
+        text-align: left;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        min-height: 120px;
+        font-size: 18px;
+        line-height: 1.8;
+    }
+
+    button {
+        margin-top: 25px;
+        padding: 12px 30px;
+        font-size: 18px;
+        border: none;
+        border-radius: 8px;
+        background: #0077cc;
+        color: white;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #005fa3;
+    }
+</style>
+</head>
+
+<body>
+
+<h1>部分背包问题动画演示</h1>
+
+<div class="container">
+
+    <div class="items" id="items"></div>
+
+    <div class="bag-section">
+        <h2>背包容量：50</h2>
+
+        <div class="bag">
+            <div class="fill" id="fill"></div>
+        </div>
+
+        <div class="info">
+            当前重量：<span id="currentWeight">0</span>
+            / 50
+            &nbsp;&nbsp;&nbsp;
+            当前价值：<span id="currentValue">0</span>
+            &nbsp;&nbsp;&nbsp;
+            剩余容量：<span id="remainCapacity">50</span>
+        </div>
+    </div>
+
+    <button onclick="startAnimation()">自动播放</button>
+    <button onclick="nextStep()" style="margin-left:15px;background:#43A047;">
+        单步执行
+    </button>
+
+    <div class="log" id="log">
+        点击“开始动画”查看装入过程...
+    </div>
+
+</div>
+
+<script>
+
+const capacity = 50;
+
+const items = [
+    {
+        id: 1,
+        weight: 10,
+        value: 60
+    },
+    {
+        id: 2,
+        weight: 15,
+        value: 75
+    },
+    {
+        id: 3,
+        weight: 20,
+        value: 100
+    },
+    {
+        id: 4,
+        weight: 25,
+        value: 90
+    },
+    {
+        id: 5,
+        weight: 30,
+        value: 120
+    }
+];
+
+// 计算单位价值
+items.forEach(item => {
+    item.ratio = item.value / item.weight;
+});
+
+// 排序
+items.sort((a, b) => b.ratio - a.ratio);
+
+const itemsDiv = document.getElementById("items");
+
+items.forEach(item => {
+    const div = document.createElement("div");
+
+    div.className = "item";
+    div.id = `item-${item.id}`;
+
+    div.innerHTML = `
+        <h3>物品 ${item.id}</h3>
+        <div>重量：${item.weight}</div>
+        <div>价值：${item.value}</div>
+        <div class="ratio">
+            单位价值：${item.ratio.toFixed(2)}
+        </div>
+        <div id="x-${item.id}" style="margin-top:8px;color:#d32f2f;font-weight:bold;">
+            x${item.id} = 0
+        </div>
+    `;
+
+    itemsDiv.appendChild(div);
+});
+
+let currentWeight = 0;
+let currentValue = 0;
+
+function updateUI() {
+
+    document.getElementById("currentWeight").innerText =
+        currentWeight.toFixed(2);
+
+    document.getElementById("currentValue").innerText =
+        currentValue.toFixed(2);
+
+    // 显示剩余容量
+    document.getElementById("remainCapacity").innerText =
+        (capacity - currentWeight).toFixed(2);
+
+    document.getElementById("fill").style.width =
+        (currentWeight / capacity * 100) + "%";
+}
+
+function log(message) {
+    document.getElementById("log").innerHTML +=
+        "<br>" + message;
+}
+
+let stepIndex = 0;
+let finished = false;
+
+async function executeOneStep() {
+
+    if (finished || stepIndex >= items.length) {
+        return;
+    }
+
+    const item = items[stepIndex];
+
+    const div = document.getElementById(`item-${item.id}`);
+
+    div.classList.add("active");
+
+    await sleep(800);
+
+    // 能全部装入
+    if (currentWeight + item.weight <= capacity) {
+
+        currentWeight += item.weight;
+        currentValue += item.value;
+
+        document.getElementById(`x-${item.id}`).innerHTML =
+            `x${item.id} = 1`;
+
+        log(`装入物品 ${item.id}：全部装入`);
+        log(`x${item.id} = 1`);
+        log(`增加重量 ${item.weight}，增加价值 ${item.value}`);
+        log(`剩余容量：${(capacity - currentWeight).toFixed(2)}`);
+
+        updateUI();
+
+        div.classList.remove("active");
+        div.classList.add("taken");
+    }
+    else {
+
+        const remain = capacity - currentWeight;
+
+        const fraction = remain / item.weight;
+
+        const addedValue = item.value * fraction;
+
+        document.getElementById(`x-${item.id}`).innerHTML =
+            `x${item.id} = ${fraction.toFixed(2)}`;
+
+        currentWeight += remain;
+        currentValue += addedValue;
+
+        log(`物品 ${item.id} 无法全部装入`);
+        log(`x${item.id} = ${fraction.toFixed(2)}`);
+        log(`只装入 ${(fraction * 100).toFixed(2)}%`);
+        log(`增加重量 ${remain}`);
+        log(`增加价值 ${addedValue.toFixed(2)}`);
+        log(`剩余容量：${(capacity - currentWeight).toFixed(2)}`);
+
+        updateUI();
+
+        div.style.background = "#FFD180";
+
+        finished = true;
+
+        log("<br><strong>装入结束！</strong>");
+        log(`<strong>最终最大价值：${currentValue.toFixed(2)}</strong>`);
+    }
+
+    stepIndex++;
+
+    if (stepIndex >= items.length && !finished) {
+        finished = true;
+
+        log("<br><strong>装入结束！</strong>");
+        log(`<strong>最终最大价值：${currentValue.toFixed(2)}</strong>`);
+    }
+}
+
+function resetAnimation() {
+
+    currentWeight = 0;
+    currentValue = 0;
+    stepIndex = 0;
+    finished = false;
+
+    updateUI();
+
+    document.getElementById("log").innerHTML =
+        "开始按单位价值从大到小装入物品...";
+
+    items.forEach(item => {
+
+        const div = document.getElementById(`item-${item.id}`);
+
+        div.classList.remove("active");
+        div.classList.remove("taken");
+
+        div.style.background = "white";
+
+        document.getElementById(`x-${item.id}`).innerHTML =
+            `x${item.id} = 0`;
+    });
+}
+
+function nextStep() {
+
+    if (stepIndex === 0 && currentWeight === 0) {
+        resetAnimation();
+    }
+
+    executeOneStep();
+}
+
+async function startAnimation() {
+
+    resetAnimation();
+
+    while (!finished && stepIndex < items.length) {
+        await executeOneStep();
+        await sleep(1200);
+    }
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+</script>
+
+</body>
+</html>
