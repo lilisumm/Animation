@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Dijkstra最短路径 dist数组填表动画（无向图）</title>
+
+<style>
+
+body{
+    font-family:"Microsoft YaHei";
+    background:#f4f6f8;
+    margin:20px;
+}
+
+h2{
+    text-align:center;
+}
+
+.container{
+    display:flex;
+    gap:30px;
+}
+
+.panel{
+    background:white;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.15);
+    padding:15px;
+}
+
+svg{
+    background:white;
+}
+
+.vertex{
+    fill:white;
+    stroke:#333;
+    stroke-width:2;
+}
+
+.selected{
+    fill:#ffb347;
+}
+
+.finished{
+    fill:#8fd18f;
+}
+
+.edge{
+    stroke:#555;
+    stroke-width:2;
+}
+
+table{
+    border-collapse:collapse;
+    margin-top:10px;
+}
+
+th,td{
+    border:1px solid #666;
+    width:60px;
+    height:40px;
+    text-align:center;
+}
+
+button{
+    padding:8px 18px;
+    margin:5px;
+    font-size:15px;
+}
+
+#msg{
+    margin-top:15px;
+    min-height:100px;
+    padding:10px;
+    background:#eef7ff;
+    border-left:5px solid #3399ff;
+}
+
+.stepTitle{
+    color:#0066cc;
+    font-weight:bold;
+}
+
+</style>
+</head>
+<body>
+
+<h2>Dijkstra 单源最短路径 —— dist数组填表过程（无向图）</h2>
+
+<div style="text-align:center">
+<button onclick="nextStep()">下一步</button>
+<button onclick="autoPlay()">自动播放</button>
+<button onclick="location.reload()">重新开始</button>
+</div>
+
+<div class="container">
+
+<div class="panel">
+
+<svg width="600" height="320">
+
+<!-- 无向边 -->
+
+<line x1="110" y1="160"
+      x2="250" y2="80"
+      class="edge"/>
+<text x="175" y="105">2</text>
+
+<line x1="110" y1="160"
+      x2="250" y2="240"
+      class="edge"/>
+<text x="175" y="220">4</text>
+
+<line x1="280" y1="95"
+      x2="280" y2="220"
+      class="edge"/>
+<text x="290" y="160">1</text>
+
+<line x1="310" y1="80"
+      x2="470" y2="80"
+      class="edge"/>
+<text x="390" y="65">7</text>
+
+<line x1="310" y1="230"
+      x2="470" y2="170"
+      class="edge"/>
+<text x="390" y="210">3</text>
+
+<line x1="500" y1="105"
+      x2="500" y2="145"
+      class="edge"/>
+<text x="512" y="130">1</text>
+
+<!-- 顶点 -->
+
+<circle id="v1" cx="90" cy="160" r="28" class="vertex"/>
+<text x="83" y="166">1</text>
+
+<circle id="v2" cx="280" cy="80" r="28" class="vertex"/>
+<text x="273" y="86">2</text>
+
+<circle id="v3" cx="280" cy="240" r="28" class="vertex"/>
+<text x="273" y="246">3</text>
+
+<circle id="v4" cx="500" cy="80" r="28" class="vertex"/>
+<text x="493" y="86">4</text>
+
+<circle id="v5" cx="500" cy="170" r="28" class="vertex"/>
+<text x="493" y="176">5</text>
+
+</svg>
+
+</div>
+
+<div class="panel">
+
+<h3>dist数组</h3>
+
+<table>
+
+<tr>
+<th>顶点</th>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+</tr>
+
+<tr>
+<th>dist</th>
+<td id="d1">∞</td>
+<td id="d2">∞</td>
+<td id="d3">∞</td>
+<td id="d4">∞</td>
+<td id="d5">∞</td>
+</tr>
+
+</table>
+
+<div id="msg">
+点击【下一步】开始演示
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const steps = [
+
+{
+title:"初始化",
+dist:[0,2,4,"∞","∞"],
+current:1,
+visited:[1],
+msg:
+"源点为1。<br>" +
+"dist[1]=0<br>" +
+"dist[2]=2<br>" +
+"dist[3]=4<br>" +
+"dist[4]=∞<br>" +
+"dist[5]=∞"
+},
+
+{
+title:"选择顶点2",
+dist:[0,2,4,"∞","∞"],
+current:2,
+visited:[1,2],
+msg:
+"未确定顶点中dist最小的是顶点2，加入集合S。"
+},
+
+{
+title:"利用顶点2松弛",
+dist:[0,2,3,9,"∞"],
+current:2,
+visited:[1,2],
+msg:
+"检查边(2,3)：<br>" +
+"min(4,2+1)=3<br><br>" +
+"检查边(2,4)：<br>" +
+"min(∞,2+7)=9"
+},
+
+{
+title:"选择顶点3",
+dist:[0,2,3,9,"∞"],
+current:3,
+visited:[1,2,3],
+msg:
+"当前最小dist为顶点3。"
+},
+
+{
+title:"利用顶点3松弛",
+dist:[0,2,3,9,6],
+current:3,
+visited:[1,2,3],
+msg:
+"检查边(3,5)：<br>" +
+"min(∞,3+3)=6"
+},
+
+{
+title:"选择顶点5",
+dist:[0,2,3,7,6],
+current:5,
+visited:[1,2,3,5],
+msg:
+"当前最小dist为顶点5。<br><br>" +
+"检查边(5,4)：<br>" +
+"6+1=7 < 9<br>" +
+"更新 dist[4] = 7"
+},
+
+{
+title:"选择顶点4",
+dist:[0,2,3,7,6],
+current:4,
+visited:[1,2,3,5,4],
+msg:
+"顶点4加入集合S。<br>" +
+"所有顶点均已确定最短路径。"
+},
+
+{
+title:"算法结束",
+dist:[0,2,3,7,6],
+current:null,
+visited:[1,2,3,4,5],
+msg:
+"<b>最终结果：</b><br>" +
+"dist[1]=0<br>" +
+"dist[2]=2<br>" +
+"dist[3]=3<br>" +
+"dist[4]=7<br>" +
+"dist[5]=6"
+}
+
+];
+
+let currentStep = 0;
+
+function clearColor(){
+
+    for(let i=1;i<=5;i++){
+        document
+            .getElementById("v"+i)
+            .setAttribute("class","vertex");
+    }
+}
+
+function showStep(){
+
+    if(currentStep >= steps.length)
+        return;
+
+    const s = steps[currentStep];
+
+    for(let i=1;i<=5;i++){
+        document.getElementById("d"+i)
+            .innerHTML = s.dist[i-1];
+    }
+
+    clearColor();
+
+    if(s.visited){
+
+        s.visited.forEach(v=>{
+
+            document.getElementById("v"+v)
+                    .classList.add("finished");
+        });
+    }
+
+    if(s.current){
+
+        document.getElementById("v"+s.current)
+                .classList.remove("finished");
+
+        document.getElementById("v"+s.current)
+                .classList.add("selected");
+    }
+
+    document.getElementById("msg").innerHTML =
+        "<div class='stepTitle'>步骤 "
+        +(currentStep+1)
+        +" ："
+        +s.title
+        +"</div><br>"
+        +s.msg;
+}
+
+function nextStep(){
+
+    if(currentStep >= steps.length)
+        return;
+
+    showStep();
+    currentStep++;
+}
+
+function autoPlay(){
+
+    const timer = setInterval(()=>{
+
+        if(currentStep >= steps.length){
+
+            clearInterval(timer);
+            return;
+        }
+
+        showStep();
+        currentStep++;
+
+    },2000);
+}
+
+</script>
+
+</body>
+</html>
