@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>队列式分支限界法解决装载问题动画</title>
+
+<style>
+
+body{
+    font-family:"Microsoft YaHei";
+    background:#f5f6fa;
+    margin:20px;
+}
+
+h2{
+    text-align:center;
+    color:#2c3e50;
+}
+
+.info{
+    width:1000px;
+    margin:auto;
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+
+.panel{
+    display:flex;
+    gap:20px;
+    margin-top:20px;
+}
+
+.box{
+    flex:1;
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+
+.queue{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:10px;
+}
+
+.node{
+    width:60px;
+    height:40px;
+    background:#3498db;
+    color:white;
+    text-align:center;
+    line-height:40px;
+    border-radius:6px;
+    font-weight:bold;
+}
+
+.current{
+    background:#e74c3c;
+}
+
+.prune{
+    color:red;
+    font-weight:bold;
+}
+
+.success{
+    color:green;
+    font-weight:bold;
+}
+
+#log{
+    height:280px;
+    overflow-y:auto;
+    background:#fafafa;
+    border:1px solid #ddd;
+    padding:10px;
+}
+
+button{
+    padding:10px 20px;
+    margin:5px;
+    border:none;
+    border-radius:6px;
+    background:#3498db;
+    color:white;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#2980b9;
+}
+
+.best{
+    font-size:22px;
+    color:#e74c3c;
+    font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>队列式分支限界法解决装载问题动画</h2>
+
+<div class="info">
+
+<p>
+载重量 C = <b>100</b><br>
+集装箱重量：
+<b>V1=18，V2=36，V3=25，V4=7</b>
+</p>
+
+<div class="best">
+当前最优装载重量 bestw =
+<span id="bestw">0</span>
+</div>
+
+<button onclick="nextStep()">▶ 下一步</button>
+<button onclick="autoPlay()">⏩ 自动播放</button>
+<button onclick="resetAnimation()">🔄 重置</button>
+
+<div class="panel">
+
+<div class="box">
+
+<h3>活结点队列</h3>
+
+<div id="queue" class="queue"></div>
+
+</div>
+
+<div class="box">
+
+<h3>搜索过程</h3>
+
+<div id="log"></div>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+let step=0;
+let timer=null;
+
+const states=[
+
+{
+queue:["-1"],
+best:0,
+msg:"初始化：Q=[-1]，bestw=0，Ew=0，r=68"
+},
+
+{
+queue:["-1","18"],
+best:18,
+msg:"扩展根结点：左孩子(装V1)，wt=18≤100，更新bestw=18，18入队"
+},
+
+{
+queue:["-1","18","0"],
+best:18,
+msg:"右孩子(不装V1)：UB=0+68=68 > 18，0入队"
+},
+
+{
+queue:["18","0","-1"],
+best:18,
+msg:"当前层结束，进入第2层，决策V2"
+},
+
+{
+queue:["0","-1","54"],
+best:54,
+msg:"扩展18：装V2，wt=54≤100，更新bestw=54，54入队"
+},
+
+{
+queue:["0","-1","54"],
+best:54,
+msg:"扩展18：不装V2，UB=18+32=50 < 54，<span class='prune'>剪枝</span>"
+},
+
+{
+queue:["-1","54","36"],
+best:54,
+msg:"扩展0：装V2，wt=36≤100，36入队"
+},
+
+{
+queue:["-1","54","36"],
+best:54,
+msg:"扩展0：不装V2，UB=32 < 54，<span class='prune'>剪枝</span>"
+},
+
+{
+queue:["54","36","-1"],
+best:54,
+msg:"当前层结束，进入第3层，决策V3"
+},
+
+{
+queue:["36","-1","79"],
+best:79,
+msg:"扩展54：装V3，wt=79≤100，更新bestw=79，79入队"
+},
+
+{
+queue:["36","-1","79"],
+best:79,
+msg:"扩展54：不装V3，UB=61 < 79，<span class='prune'>剪枝</span>"
+},
+
+{
+queue:["-1","79","61"],
+best:79,
+msg:"扩展36：装V3，wt=61≤100，61入队"
+},
+
+{
+queue:["-1","79","61"],
+best:79,
+msg:"扩展36：不装V3，UB=43 < 79，<span class='prune'>剪枝</span>"
+},
+
+{
+queue:["79","61","-1"],
+best:79,
+msg:"当前层结束，进入第4层，决策V4"
+},
+
+{
+queue:["61","-1"],
+best:86,
+msg:"扩展79：装V4，wt=86≤100，更新bestw=86"
+},
+
+{
+queue:["61","-1"],
+best:86,
+msg:"扩展79：不装V4，UB=79 < 86，<span class='prune'>剪枝</span>"
+},
+
+{
+queue:["-1"],
+best:86,
+msg:"扩展61：装V4，wt=68≤100，bestw保持86"
+},
+
+{
+queue:["-1"],
+best:86,
+msg:"扩展61：不装V4，UB=61 < 86，<span class='prune'>剪枝</span>"
+},
+
+{
+queue:[],
+best:86,
+msg:"<span class='success'>搜索结束！最优装载重量 bestw = 86</span><br><br>最优方案：V1、V2、V3、V4全部装入<br>总重量=18+36+25+7=86"
+}
+
+];
+
+function renderState(s){
+
+document.getElementById("bestw").innerHTML=s.best;
+
+let q=document.getElementById("queue");
+q.innerHTML="";
+
+s.queue.forEach((x,index)=>{
+
+let div=document.createElement("div");
+div.className="node";
+
+if(index===0)
+div.classList.add("current");
+
+div.innerHTML=x;
+
+q.appendChild(div);
+
+});
+
+let log=document.getElementById("log");
+
+log.innerHTML +=
+"<p><b>Step "
++(step+1)+
+"</b>："+
+s.msg+
+"</p>";
+
+log.scrollTop=log.scrollHeight;
+
+}
+
+function nextStep(){
+
+if(step>=states.length)
+return;
+
+renderState(states[step]);
+
+step++;
+}
+
+function autoPlay(){
+
+if(timer)
+return;
+
+timer=setInterval(()=>{
+
+if(step>=states.length){
+
+clearInterval(timer);
+timer=null;
+return;
+}
+
+nextStep();
+
+},1500);
+
+}
+
+function resetAnimation(){
+
+step=0;
+
+clearInterval(timer);
+
+timer=null;
+
+document.getElementById("bestw").innerHTML="0";
+document.getElementById("queue").innerHTML="";
+document.getElementById("log").innerHTML="";
+
+}
+
+renderState(states[0]);
+step=1;
+
+</script>
+
+</body>
+</html>
