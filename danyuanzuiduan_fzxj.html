@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>优先队列式分支限界法求最短路径</title>
+
+<style>
+
+body{
+    font-family:"Microsoft YaHei";
+    background:#f4f6f8;
+    margin:20px;
+}
+
+h2{
+    text-align:center;
+}
+
+.container{
+    display:flex;
+}
+
+.left{
+    width:65%;
+}
+
+.right{
+    width:35%;
+    padding:20px;
+    background:white;
+    border-left:2px solid #ccc;
+}
+
+svg{
+    background:white;
+    border:1px solid #ccc;
+}
+
+.node{
+    fill:white;
+    stroke:#333;
+    stroke-width:2;
+}
+
+.current{
+    fill:#ff6666;
+}
+
+.visited{
+    fill:#66cc66;
+}
+
+.target{
+    fill:gold;
+}
+
+.edge{
+    stroke:#888;
+    stroke-width:2;
+    marker-end:url(#arrow);
+}
+
+.path{
+    stroke:#ff6600;
+    stroke-width:5;
+}
+
+button{
+    padding:8px 15px;
+    margin:5px;
+}
+
+table{
+    border-collapse:collapse;
+    width:100%;
+}
+
+td,th{
+    border:1px solid #999;
+    text-align:center;
+    padding:4px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>
+优先队列式分支限界法求单源最短路径
+</h2>
+
+<div style="text-align:center">
+<button onclick="prevStep()">上一步</button>
+<button onclick="nextStep()">下一步</button>
+<button onclick="autoPlay()">自动播放</button>
+<button onclick="resetAnim()">重置</button>
+</div>
+
+<div class="container">
+
+<div class="left">
+
+<svg width="700" height="420">
+
+<defs>
+<marker id="arrow"
+markerWidth="10"
+markerHeight="10"
+refX="10"
+refY="3"
+orient="auto">
+<path d="M0,0 L10,3 L0,6 Z" fill="#666"/>
+</marker>
+</defs>
+
+<!-- 边 -->
+
+<line id="AB" class="edge"
+x1="100" y1="120"
+x2="280" y2="120"/>
+
+<line id="AC" class="edge"
+x1="100" y1="120"
+x2="280" y2="300"/>
+
+<line id="BD" class="edge"
+x1="320" y1="120"
+x2="500" y2="120"/>
+
+<line id="CD" class="edge"
+x1="320" y1="300"
+x2="500" y2="120"/>
+
+<line id="CE" class="edge"
+x1="320" y1="300"
+x2="500" y2="300"/>
+
+<line id="DE" class="edge"
+x1="540" y1="120"
+x2="540" y2="260"/>
+
+<!-- 权值 -->
+
+<text x="190" y="105">2</text>
+<text x="170" y="220">5</text>
+<text x="410" y="105">1</text>
+<text x="410" y="220">2</text>
+<text x="410" y="285">4</text>
+<text x="555" y="190">3</text>
+
+<!-- 点 -->
+
+<circle id="A" class="node" cx="80" cy="120" r="25"/>
+<text x="73" y="126">A</text>
+
+<circle id="B" class="node" cx="300" cy="120" r="25"/>
+<text x="293" y="126">B</text>
+
+<circle id="C" class="node" cx="300" cy="300" r="25"/>
+<text x="293" y="306">C</text>
+
+<circle id="D" class="node" cx="520" cy="120" r="25"/>
+<text x="513" y="126">D</text>
+
+<circle id="E" class="node" cx="520" cy="300" r="25"/>
+<text x="513" y="306">E</text>
+
+</svg>
+
+</div>
+
+<div class="right">
+
+<h3>当前步骤</h3>
+<div id="step"></div>
+
+<h3>扩展结点</h3>
+<div id="current"></div>
+
+<h3>优先队列</h3>
+<div id="queue"></div>
+
+<h3>说明</h3>
+<div id="info"></div>
+
+<h3>dist数组</h3>
+
+<table>
+<tr>
+<th>顶点</th>
+<th>dist</th>
+</tr>
+
+<tr><td>A</td><td id="dA">0</td></tr>
+<tr><td>B</td><td id="dB">∞</td></tr>
+<tr><td>C</td><td id="dC">∞</td></tr>
+<tr><td>D</td><td id="dD">∞</td></tr>
+<tr><td>E</td><td id="dE">∞</td></tr>
+</table>
+
+</div>
+
+</div>
+
+<script>
+
+const states=[
+
+{
+step:"初始化",
+current:"A",
+queue:"[(A,0)]",
+info:"源点A入队",
+dist:{A:0,B:"∞",C:"∞",D:"∞",E:"∞"}
+},
+
+{
+step:"Step1",
+current:"A",
+queue:"[(B,2),(C,5)]",
+info:"扩展A，更新B=2，C=5",
+dist:{A:0,B:2,C:5,D:"∞",E:"∞"}
+},
+
+{
+step:"Step2",
+current:"B",
+queue:"[(D,3),(C,5)]",
+info:"扩展B，更新D=3",
+dist:{A:0,B:2,C:5,D:3,E:"∞"}
+},
+
+{
+step:"Step3",
+current:"D",
+queue:"[(C,5),(E,6)]",
+info:"扩展D，更新E=6",
+dist:{A:0,B:2,C:5,D:3,E:6}
+},
+
+{
+step:"Step4",
+current:"C",
+queue:"[(E,6)]",
+info:"扩展C，D=7和E=9均被剪枝",
+dist:{A:0,B:2,C:5,D:3,E:6}
+},
+
+{
+step:"Step5",
+current:"E",
+queue:"[]",
+info:"到达目标E，最短路径长度=6",
+dist:{A:0,B:2,C:5,D:3,E:6}
+}
+
+];
+
+let cur=0;
+let timer=null;
+
+function update(){
+
+document.querySelectorAll("circle")
+.forEach(n=>{
+n.classList.remove("current");
+});
+
+document.getElementById(
+states[cur].current
+).classList.add("current");
+
+step.innerHTML=states[cur].step;
+current.innerHTML=states[cur].current;
+queue.innerHTML=states[cur].queue;
+info.innerHTML=states[cur].info;
+
+for(let v in states[cur].dist){
+document.getElementById(
+"d"+v
+).innerHTML=
+states[cur].dist[v];
+}
+
+if(cur===5){
+
+document.getElementById("AB")
+.classList.add("path");
+
+document.getElementById("BD")
+.classList.add("path");
+
+document.getElementById("DE")
+.classList.add("path");
+
+}
+}
+
+function nextStep(){
+if(cur<states.length-1){
+cur++;
+update();
+}
+}
+
+function prevStep(){
+if(cur>0){
+cur--;
+update();
+}
+}
+
+function resetAnim(){
+
+cur=0;
+
+document.querySelectorAll(".edge")
+.forEach(e=>{
+e.classList.remove("path");
+});
+
+update();
+}
+
+function autoPlay(){
+
+clearInterval(timer);
+
+timer=setInterval(()=>{
+
+if(cur<states.length-1){
+cur++;
+update();
+}
+else{
+clearInterval(timer);
+}
+
+},1800);
+}
+
+update();
+
+</script>
+
+</body>
+</html>
