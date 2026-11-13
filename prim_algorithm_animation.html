@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prim算法执行过程动画</title>
+<style>
+:root{--blue:#2563eb;--green:#16a34a;--orange:#ea580c;--muted:#64748b;--line:#cbd5e1;--bg:#f8fafc}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033}
+main{max-width:1120px;margin:24px auto;padding:0 18px}
+h1{font-size:26px;margin:0 0 6px}.sub{color:var(--muted);margin:0 0 18px}
+.panel{background:white;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 3px 12px #0f172a0a}
+.layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.9fr);gap:16px}
+svg{width:100%;height:auto;display:block;background:#fbfdff;border-radius:10px}
+.edge{stroke:#94a3b8;stroke-width:2.4}.edge.chosen{stroke:var(--green);stroke-width:5}.edge.candidate{stroke:var(--orange);stroke-width:4;stroke-dasharray:7 5}
+.edge-label{font-size:14px;fill:#334155;font-weight:650}.node circle{fill:white;stroke:#64748b;stroke-width:2.5}.node text{font-size:17px;font-weight:700;fill:#0f172a;text-anchor:middle;dominant-baseline:central}.node.in circle{fill:#dcfce7;stroke:var(--green);stroke-width:3.5}.node.current circle{fill:#ffedd5;stroke:var(--orange);stroke-width:4}
+.legend{display:flex;gap:16px;flex-wrap:wrap;color:#475569;font-size:13px;margin-top:10px}.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:middle;background:#dcfce7;border:2px solid var(--green)}
+.dot.orange{background:#ffedd5;border-color:var(--orange)}.dot.gray{background:white;border-color:#64748b}
+.status{font-size:15px;line-height:1.6;min-height:74px}.status strong{color:var(--blue)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+button{border:0;border-radius:9px;padding:9px 14px;background:var(--blue);color:white;font-size:14px;cursor:pointer}button.secondary{background:#e2e8f0;color:#1e293b}button:disabled{opacity:.45;cursor:not-allowed}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}th,td{padding:9px 7px;text-align:center;border-bottom:1px solid #e2e8f0}th{background:#f1f5f9;color:#334155;font-weight:650}td.active{background:#ffedd5;font-weight:700}td.done{background:#dcfce7}
+.small{font-size:12px;color:var(--muted);margin-top:10px}.tag{display:inline-block;padding:3px 8px;border-radius:20px;background:#eff6ff;color:#1d4ed8;font-size:12px;margin-left:6px}
+.log{margin:12px 0 0;padding-left:22px;max-height:160px;overflow:auto;color:#475569;font-size:13px}.log li{margin:5px 0}.total{font-size:18px;font-weight:750;margin-top:12px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}h1{font-size:22px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Prim算法执行过程动画</h1>
+  <p class="sub">邻接矩阵实现 · 从顶点 1 开始 · 每一步观察 lowcost、closest 和 s 的变化</p>
+  <div class="layout">
+    <section class="panel">
+      <h2 style="font-size:17px;margin:0 0 10px">加权无向图</h2>
+      <svg viewBox="0 0 620 390" role="img" aria-label="五个顶点的加权无向图">
+        <g id="edges">
+          <line class="edge" data-edge="1-2" x1="115" y1="180" x2="280" y2="70"/><text class="edge-label" x="188" y="105">2</text>
+          <line class="edge" data-edge="1-4" x1="115" y1="180" x2="280" y2="300"/><text class="edge-label" x="185" y="257">6</text>
+          <line class="edge" data-edge="2-3" x1="280" y1="70" x2="490" y2="130"/><text class="edge-label" x="382" y="83">3</text>
+          <line class="edge" data-edge="2-4" x1="280" y1="70" x2="280" y2="300"/><text class="edge-label" x="292" y="190">8</text>
+          <line class="edge" data-edge="2-5" x1="280" y1="70" x2="490" y2="300"/><text class="edge-label" x="405" y="205">5</text>
+          <line class="edge" data-edge="3-5" x1="490" y1="130" x2="490" y2="300"/><text class="edge-label" x="502" y="220">7</text>
+          <line class="edge" data-edge="4-5" x1="280" y1="300" x2="490" y2="300"/><text class="edge-label" x="382" y="290">9</text>
+        </g>
+        <g class="node" data-node="1"><circle cx="115" cy="180" r="27"/><text x="115" y="180">1</text></g>
+        <g class="node" data-node="2"><circle cx="280" cy="70" r="27"/><text x="280" y="70">2</text></g>
+        <g class="node" data-node="3"><circle cx="490" cy="130" r="27"/><text x="490" y="130">3</text></g>
+        <g class="node" data-node="4"><circle cx="280" cy="300" r="27"/><text x="280" y="300">4</text></g>
+        <g class="node" data-node="5"><circle cx="490" cy="300" r="27"/><text x="490" y="300">5</text></g>
+      </svg>
+      <div class="legend">
+        <span><i class="dot"></i>已加入生成树</span>
+        <span><i class="dot orange"></i>本轮选中的顶点</span>
+        <span><i class="dot gray"></i>尚未加入</span>
+        <span style="color:var(--green)">绿色边：已选入最小生成树</span>
+      </div>
+      <div class="controls">
+        <button class="secondary" id="prev">上一步</button>
+        <button id="next">下一步</button>
+        <button class="secondary" id="auto">自动播放</button>
+        <button class="secondary" id="reset">重新开始</button>
+      </div>
+      <p class="small">提示：橙色虚线表示当前轮次即将加入生成树的边；绿色实线表示已经确定的边。</p>
+    </section>
+    <section class="panel">
+      <h2 style="font-size:17px;margin:0 0 10px">算法状态 <span class="tag" id="stepTag">初始化</span></h2>
+      <div class="status" id="explain" aria-live="polite"></div>
+      <table>
+        <thead><tr><th>顶点 i</th><th>lowcost[i]</th><th>closest[i]</th><th>s[i]</th></tr></thead>
+        <tbody id="stateTable"></tbody>
+      </table>
+      <div class="total" id="total">当前最小生成树权值：0</div>
+      <h3 style="font-size:15px;margin:16px 0 4px">执行记录</h3>
+      <ol class="log" id="log"></ol>
+    </section>
+  </div>
+  <section class="panel" style="margin-top:16px">
+    <h2 style="font-size:17px;margin:0 0 8px">对应代码中的关键操作</h2>
+    <p style="margin:6px 0;color:#475569"><code>lowcost[k] &lt; minCost</code>：从尚未加入生成树的顶点中，选出连接代价最小的顶点。</p>
+    <p style="margin:6px 0;color:#475569"><code>s[j] = true</code>：将选中的顶点 j 加入生成树。</p>
+    <p style="margin:6px 0;color:#475569"><code>c[j][k] &lt; lowcost[k]</code>：如果经过新加入的顶点 j 能以更小代价连接 k，就更新 lowcost[k] 和 closest[k]。</p>
+  </section>
+</main>
+<script>
+const INF = "∞";
+const vertices = [1,2,3,4,5];
+// 以顶点1为起点。状态按“初始化 + 每次选入一个顶点”保存。
+const states = [
+ {name:"初始化", chosen:null, edge:null, low:[null,0,2,INF,6,INF], near:[null,0,1,1,1,1], inside:[1], total:0,
+  msg:'首先将顶点 <strong>1</strong> 放入生成树（s[1]=true）。然后用第1行邻接矩阵初始化 lowcost 和 closest：例如 lowcost[2]=2、closest[2]=1。'},
+ {name:"第1轮",chosen:2,edge:"1-2",low:[null,0,2,3,6,5],near:[null,0,1,2,1,2],inside:[1,2],total:2,
+  msg:'扫描尚未加入的顶点，最小值为 lowcost[2]=<strong>2</strong>，因此选择顶点 <strong>2</strong>。加入边 (1,2)，再用顶点2更新其他顶点：顶点3由1更新为2，顶点5由∞更新为5。'},
+ {name:"第2轮",chosen:3,edge:"2-3",low:[null,0,2,3,6,5],near:[null,0,1,2,1,2],inside:[1,2,3],total:5,
+  msg:'当前未加入顶点的最小值为 lowcost[3]=<strong>3</strong>，选择顶点 <strong>3</strong>，加入边 (2,3)。从顶点3出发没有找到比现有 lowcost 更小的连接边，因此数组不变。'},
+ {name:"第3轮",chosen:5,edge:"2-5",low:[null,0,2,3,6,5],near:[null,0,1,2,1,2],inside:[1,2,3,5],total:10,
+  msg:'剩余顶点中，lowcost[5]=<strong>5</strong> 小于 lowcost[4]=6，因此选择顶点 <strong>5</strong>，加入边 (2,5)。经顶点5连接顶点4的权值为9，大于当前的6，不更新。'},
+ {name:"第4轮",chosen:4,edge:"1-4",low:[null,0,2,3,6,5],near:[null,0,1,2,1,2],inside:[1,2,3,4,5],total:16,
+  msg:'最后选择顶点 <strong>4</strong>，加入边 (1,4)，权值为6。此时所有顶点均已加入生成树，算法结束。最小生成树共包含4条边，总权值为 <strong>16</strong>。'}
+];
+let step=0, timer=null;
+const $=id=>document.getElementById(id);
+function render(){
+ const st=states[step];
+ $("stepTag").textContent=st.name;
+ $("explain").innerHTML=st.msg;
+ $("total").textContent=`当前最小生成树权值：${st.total}`+(step===4?"（算法完成）":"");
+ $("stateTable").innerHTML=vertices.map(v=>{
+   const inside=st.inside.includes(v), selected=st.chosen===v;
+   const cls=selected?"active":inside?"done":"";
+   return `<tr><td>${v}</td><td class="${cls}">${v===1?"—":st.low[v]}</td><td class="${cls}">${v===1?"—":st.near[v]}</td><td class="${cls}">${inside?"true":"false"}</td></tr>`;
+ }).join("");
+ document.querySelectorAll(".node").forEach(el=>{
+   const v=Number(el.dataset.node);
+   el.classList.toggle("in",st.inside.includes(v));
+   el.classList.toggle("current",st.chosen===v);
+ });
+ document.querySelectorAll(".edge").forEach(el=>{
+   const key=el.dataset.edge;
+   const chosenEdges=states.slice(1,step+1).map(x=>x.edge);
+   el.classList.toggle("chosen",chosenEdges.includes(key));
+   el.classList.toggle("candidate",st.edge===key && step>0);
+ });
+ $("log").innerHTML=states.slice(1,step+1).map((x,i)=>`<li>第${i+1}轮：加入边 ${x.edge.replace("-", "—")}，权值 ${x.low[x.chosen]}。</li>`).join("");
+ $("prev").disabled=step===0;
+ $("next").disabled=step===states.length-1;
+ if(step===states.length-1) stopAuto();
+}
+function stopAuto(){if(timer){clearInterval(timer);timer=null;} $("auto").textContent="自动播放";}
+$("prev").onclick=()=>{stopAuto();step=Math.max(0,step-1);render();};
+$("next").onclick=()=>{step=Math.min(states.length-1,step+1);render();};
+$("reset").onclick=()=>{stopAuto();step=0;render();};
+$("auto").onclick=()=>{
+ if(timer){stopAuto();return;}
+ if(step===states.length-1)step=0;
+ $("auto").textContent="暂停";
+ timer=setInterval(()=>{if(step<states.length-1){step++;render();}else stopAuto();},1900);
+ render();
+};
+render();
+</script>
+</body>
+</html>
