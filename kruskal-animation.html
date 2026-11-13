@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kruskal 算法执行过程</title>
+<style>
+  :root {
+    --ink: #142033;
+    --muted: #5c6b80;
+    --line: #dbe3ee;
+    --card: #ffffff;
+    --bg: #e7eef6;
+    --green: #047857;
+    --green-soft: #ecfdf5;
+    --amber: #c2410c;
+    --amber-soft: #fff7ed;
+    --blue: #0369a1;
+    --red: #b91c1c;
+    --code: #101828;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 400px at 10% -10%, #dbeafe 0%, transparent 55%),
+      radial-gradient(900px 360px at 100% 0%, #d1fae5 0%, transparent 50%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px 22px;
+    padding: 14px 22px 12px;
+    color: white;
+    background: linear-gradient(115deg, #10243f 0%, #134e4a 70%, #166534 100%);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 720;
+    letter-spacing: 0.02em;
+  }
+  header p {
+    margin: 3px 0 0;
+    color: rgba(255,255,255,.78);
+    font-size: 13px;
+  }
+  .brand { margin-right: auto; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  button, .speed {
+    font: inherit;
+  }
+  button {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.35);
+    background: transparent;
+    color: white;
+    cursor: pointer;
+  }
+  button:hover { background: rgba(255,255,255,.12); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary {
+    background: #f8fafc;
+    color: #14532d;
+    border-color: #f8fafc;
+    font-weight: 700;
+    min-width: 74px;
+  }
+  button.primary:hover { background: #ecfdf5; }
+  .speed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,.86);
+    font-size: 13px;
+  }
+  .speed input { width: 110px; accent-color: #86efac; }
+  .pos {
+    min-width: 72px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255,255,255,.9);
+    font-size: 13px;
+  }
+  .sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #e7eef6;
+  }
+  .scrub-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 22px 0;
+  }
+  .scrub-row input { flex: 1; accent-color: #047857; }
+  .page { padding: 8px 18px 20px; }
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(380px, .9fr);
+    gap: 14px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(15, 35, 60, .05);
+  }
+  .card-h {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 12px 14px 0;
+  }
+  .card-h h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .card-h span { color: var(--muted); font-size: 12px; }
+  .graph-wrap { padding: 0 8px 2px; }
+  svg#graph { width: 100%; height: 280px; display: block; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding: 0 12px 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .legend i {
+    display: inline-block;
+    width: 18px;
+    height: 4px;
+    border-radius: 99px;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  .badges {
+    display: flex;
+    gap: 8px;
+    padding: 0 12px 6px;
+  }
+  .badge {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 4px 12px 6px;
+    min-width: 120px;
+  }
+  .badge em {
+    display: block;
+    font-style: normal;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .badge strong {
+    font-size: 22px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+  .badge.done strong { color: var(--green); }
+  .picked {
+    padding: 0 14px 6px;
+    font-size: 13px;
+    color: #334155;
+    min-height: 18px;
+  }
+  .picked b { color: var(--green); }
+  .vars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px 0;
+  }
+  .var {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 4px 8px 5px;
+  }
+  .var span { color: var(--muted); font-size: 11px; }
+  .var b { font-size: 15px; font-variant-numeric: tabular-nums; }
+  .code-legend {
+    display: flex;
+    gap: 14px;
+    padding: 6px 12px 0;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .sw {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: -1px;
+  }
+  #codeScroll {
+    height: min(340px, calc(100vh - 460px));
+    min-height: 240px;
+    overflow: auto;
+    margin: 8px;
+    border-radius: 10px;
+    background: #0f172a;
+    color: #e2e8f0;
+  }
+  #codeInner { position: relative; padding: 6px 0 12px; }
+  .line {
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    gap: 8px;
+    padding: 0 10px 0 0;
+    font-family: "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, "PingFang SC", monospace;
+    font-size: 12.5px;
+    line-height: 20px;
+    white-space: pre;
+  }
+  .code.dim .line { opacity: .62; }
+  .code.dim .line.hi,
+  .code.dim .line.also { opacity: 1; }
+  .line .no {
+    color: #64748b;
+    text-align: right;
+    user-select: none;
+  }
+  .line.hi { background: rgba(251, 191, 36, .22); box-shadow: inset 3px 0 0 #fbbf24; }
+  .line.also { background: rgba(56, 189, 248, .16); box-shadow: inset 3px 0 0 #38bdf8; }
+  .line.hi .no, .line.also .no { color: #f8fafc; }
+  .kw { color: #c4b5fd; }
+  .str { color: #86efac; }
+  .cmt { color: #94a3b8; }
+  .num { color: #fcd34d; }
+  .pp { color: #7dd3fc; }
+  .bottom {
+    display: grid;
+    grid-template-columns: 1.15fr .95fr .8fr;
+    gap: 14px;
+    margin-top: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th, td { padding: 6px 8px; text-align: left; }
+  th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  tr.run td { background: #fff7ed; }
+  tr.ok td { background: #f0fdf4; }
+  tr.bad td { background: #fef2f2; }
+  td.numc, th.numc { text-align: right; font-variant-numeric: tabular-nums; }
+  .tag {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 12px;
+    background: #f1f5f9;
+    color: #475569;
+  }
+  tr.run .tag { background: #ffedd5; color: var(--amber); }
+  tr.ok .tag { background: #d1fae5; color: var(--green); }
+  tr.bad .tag { background: #fee2e2; color: var(--red); }
+  .table-scroll { max-height: 280px; overflow: auto; padding: 4px 6px 10px; }
+  .uf { padding: 8px 12px 12px; }
+  .par {
+    display: grid;
+    grid-template-columns: 52px repeat(5, 1fr);
+    gap: 6px;
+    align-items: center;
+  }
+  .par .lab { color: var(--muted); font-size: 12px; }
+  .idx, .cell {
+    text-align: center;
+    border-radius: 8px;
+    padding: 6px 0;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+  .idx { background: #f8fafc; color: #334155; border: 1px solid var(--line); }
+  .cell {
+    background: white;
+    border: 1px solid #cbd5e1;
+    min-height: 32px;
+  }
+  .cell.read { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56,189,248,.25); }
+  .cell.flash { animation: pop .7s ease; }
+  @keyframes pop {
+    0% { transform: scale(.86); background: #fde68a; }
+    100% { transform: scale(1); background: white; }
+  }
+  .chains { margin-top: 10px; display: grid; gap: 3px; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .chain { color: #334155; }
+  .sets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .set {
+    color: white;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .trace {
+    margin: 10px 0 0;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-family: "SF Mono", Consolas, "PingFang SC", monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    max-height: 180px;
+    overflow: auto;
+  }
+  .console {
+    background: #052e16;
+    color: #d1fae5;
+    border-radius: 12px;
+    margin: 8px;
+    min-height: 132px;
+    padding: 10px 12px;
+    font-family: "SF Mono", Consolas, "PingFang SC", monospace;
+    font-size: 13.5px;
+    line-height: 1.7;
+  }
+  .console .fresh { color: #ecfccb; }
+  .console .muted { color: #6ee7b7; opacity: .65; }
+  .console .fresh::after {
+    content: "";
+    display: inline-block;
+    width: 8px;
+    height: .95em;
+    margin-left: 4px;
+    background: #bef264;
+    vertical-align: text-bottom;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .explain {
+    margin: 0;
+    padding: 8px 18px 10px;
+  }
+  .explain .bar {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: #0f2744;
+    color: white;
+    border-radius: 16px;
+    padding: 12px 16px;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, .25);
+  }
+  .explain.hypo .bar { background: #4a1d36; }
+  .kicker {
+    flex: none;
+    min-width: 92px;
+    font-size: 12px;
+    letter-spacing: .04em;
+    color: #fde68a;
+    padding-top: 3px;
+  }
+  .explain.hypo .kicker { color: #fecdd3; }
+  .ex-title { display: block; font-size: 16px; margin-bottom: 2px; }
+  .ex-text { margin: 0; font-size: 14.5px; line-height: 1.55; color: rgba(255,255,255,.92); }
+  .err {
+    margin: 10px 18px 0;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: none;
+  }
+  .edge { fill: none; stroke: #94a3b8; stroke-width: 2.4; stroke-linecap: round; transition: stroke .35s, stroke-width .35s, opacity .35s; }
+  .edge.active {
+    stroke: #ea580c;
+    stroke-width: 4.5;
+    stroke-dasharray: 8 6;
+    animation: march .55s linear infinite;
+  }
+  .edge.chosen { stroke: #047857; stroke-width: 5.2; filter: drop-shadow(0 0 3px rgba(4,120,87,.35)); }
+  .edge.skip { stroke: #cbd5e1; stroke-width: 2; stroke-dasharray: 5 6; opacity: .85; }
+  .edge.reject { stroke: #dc2626; stroke-width: 3; stroke-dasharray: 3 6; }
+  @keyframes march { to { stroke-dashoffset: -28; } }
+  .pill rect { stroke-width: 1.4; }
+  .pill text { font-size: 13px; font-weight: 750; text-anchor: middle; dominant-baseline: central; }
+  .node circle { stroke: #fff; stroke-width: 3; transition: fill .45s ease; }
+  .node.hot circle { stroke: #f59e0b; stroke-width: 5; }
+  .node text {
+    fill: white;
+    font-size: 20px;
+    font-weight: 750;
+    text-anchor: middle;
+    dominant-baseline: central;
+  }
+  @media (max-width: 1100px) {
+    .stage, .bottom { grid-template-columns: 1fr; }
+    svg#graph { max-height: 320px; }
+    #codeScroll { height: 360px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .edge.active { animation: none; }
+    .cell.flash { animation: none; background: #fde68a; }
+  }
+</style>
+</head>
+<body>
+<div class="sticky-top">
+<header>
+  <div class="brand">
+    <h1>Kruskal 算法执行过程</h1>
+    <p>按给定代码逐步演示 · 5 个顶点、7 条边 · 方向键切换，空格播放</p>
+  </div>
+  <div class="controls">
+    <button id="btnReset" type="button">重置</button>
+    <button id="btnPrev" type="button">上一步</button>
+    <button id="btnPlay" class="primary" type="button">播放</button>
+    <button id="btnNext" type="button">下一步</button>
+    <label class="speed">速度
+      <input id="speed" type="range" min="500" max="2400" step="100" value="1400" />
+    </label>
+    <span class="pos" id="posLabel">1 / 1</span>
+  </div>
+</header>
+<div class="scrub-row">
+  <input id="scrub" type="range" min="0" max="0" value="0" aria-label="步骤" />
+</div>
+<div class="explain" id="explain">
+  <div class="bar">
+    <div class="kicker" id="kicker">步骤 1</div>
+    <div>
+      <strong class="ex-title" id="exTitle"></strong>
+      <p class="ex-text" id="exText"></p>
+    </div>
+  </div>
+</div>
+</div>
+<div id="err" class="err"></div>
+<div class="page">
+  <section class="stage">
+    <div class="card">
+      <div class="card-h">
+        <h2>无向带权图</h2>
+        <span id="graphHint">顶点颜色表示所在集合</span>
+      </div>
+      <div class="graph-wrap">
+        <svg id="graph" viewBox="0 0 880 360" role="img" aria-label="示例图"></svg>
+      </div>
+      <div class="badges">
+        <div class="badge" id="mstBadge">
+          <em>当前总权值 mstWeight</em>
+          <strong id="mstNum">—</strong>
+        </div>
+        <div class="badge" id="cntBadge">
+          <em>已选边数 / (n − 1)</em>
+          <strong id="cntNum">—</strong>
+        </div>
+      </div>
+      <div class="picked" id="picked"></div>
+      <div class="legend">
+        <span><i style="background:#94a3b8"></i>未选边</span>
+        <span><i style="background:#ea580c"></i>正在考察</span>
+        <span><i style="background:#047857"></i>已选入</span>
+        <span><i style="background:#dc2626"></i>会成环（对照）</span>
+        <span><span class="dot" style="background:#2563eb"></span><span class="dot" style="background:#d97706"></span><span class="dot" style="background:#059669"></span>同色顶点属于同一集合</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <h2>源代码</h2>
+        <span>高亮行是当前正在执行的语句</span>
+      </div>
+      <div class="vars" id="vars"></div>
+      <div class="code-legend">
+        <span><i class="sw" style="background:#fbbf24"></i>正在执行</span>
+        <span><i class="sw" style="background:#38bdf8"></i>对应的调用位置</span>
+      </div>
+      <div id="codeScroll"><div id="codeInner"></div></div>
+    </div>
+  </section>
+  <section class="bottom">
+    <div class="card">
+      <div class="card-h">
+        <h2>边表</h2>
+        <span id="edgeHint">调用 sort 之前保持输入顺序</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th class="numc">序</th>
+              <th>边</th>
+              <th class="numc">权值</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody id="edgeBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <h2>并查集</h2>
+        <span>Find 带路径压缩，Union 把 u 的根挂到 v 的根</span>
+      </div>
+      <div class="uf" id="uf"></div>
+    </div>
+    <div class="card">
+      <div class="card-h">
+        <h2>程序输出</h2>
+        <span>对应 cout</span>
+      </div>
+      <div class="console" id="console"></div>
+    </div>
+  </section>
+</div>
+<script>
+const SRC = `#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+// 边结构
+struct Edge {
+    int u;  // 起点
+    int v;  // 终点
+    int w;  // 权值
+
+    // 按权值从小到大排序
+    bool operator<(const Edge& e) const {
+        return w < e.w;
+    }
+};
+
+// 并查集
+class UnionFind {
+private:
+    vector<int> parent;
+
+public:
+    // 初始化
+    UnionFind(int n) {
+        parent.resize(n + 1);
+        for (int i = 1; i <= n; i++) {
+            parent[i] = i;
+        }
+    }
+
+    // 查找根节点（路径压缩）
+    int Find(int x) {
+        if (parent[x] != x) {
+            parent[x] = Find(parent[x]);
+        }
+        return parent[x];
+    }
+
+    // 合并两个集合
+    void Union(int x, int y) {
+        int rx = Find(x);
+        int ry = Find(y);
+
+        if (rx != ry) {
+            parent[rx] = ry;
+        }
+    }
+};
+
+// Kruskal算法
+int Kruskal(int n, vector<Edge>& edges) {
+
+    // 按边权从小到大排序
+    sort(edges.begin(), edges.end());
+
+    UnionFind uf(n);
+
+    int mstWeight = 0;
+    int edgeCount = 0;
+
+    cout << "最小生成树的边：" << endl;
+
+    for (Edge e : edges) {
+
+        int u = e.u;
+        int v = e.v;
+        int w = e.w;
+
+        // 判断两个顶点是否属于不同集合
+        if (uf.Find(u) != uf.Find(v)) {
+
+            // 合并两个集合
+            uf.Union(u, v);
+
+            mstWeight += w;
+            edgeCount++;
+
+            cout << u << " - "
+                 << v << " : "
+                 << w << endl;
+
+            // 最小生成树有n-1条边
+            if (edgeCount == n - 1) {
+                break;
+            }
+        }
+    }
+
+    // 判断图是否连通
+    if (edgeCount != n - 1) {
+        cout << "图不连通，无法构成最小生成树！" << endl;
+        return -1;
+    }
+
+    return mstWeight;
+}
+
+int main() {
+
+    int n = 5;
+
+    vector<Edge> edges = {
+        {1, 2, 2},
+        {2, 3, 3},
+        {1, 4, 6},
+        {2, 4, 8},
+        {2, 5, 5},
+        {3, 5, 7},
+        {4, 5, 9}
+    };
+
+    int result = Kruskal(n, edges);
+
+    if (result != -1) {
+        cout << "最小生成树的总权值："
+             << result << endl;
+    }
+
+    return 0;
+}`.split("\n");
+
+const EDGES = [
+  { id: 0, u: 1, v: 2, w: 2 },
+  { id: 1, u: 2, v: 3, w: 3 },
+  { id: 2, u: 1, v: 4, w: 6 },
+  { id: 3, u: 2, v: 4, w: 8 },
+  { id: 4, u: 2, v: 5, w: 5 },
+  { id: 5, u: 3, v: 5, w: 7 },
+  { id: 6, u: 4, v: 5, w: 9 }
+];
+const EDGE_BY_ID = Object.fromEntries(EDGES.map((e) => [e.id, e]));
+const ORDER_SORTED = [0, 1, 4, 2, 5, 3, 6];
+const POS = {
+  1: { x: 110, y: 82 },
+  2: { x: 440, y: 54 },
+  3: { x: 770, y: 82 },
+  4: { x: 250, y: 286 },
+  5: { x: 630, y: 286 }
+};
+const ROOT_COLOR = {
+  1: "#2563eb",
+  2: "#d97706",
+  3: "#059669",
+  4: "#7c3aed",
+  5: "#e11d48"
+};
+const LABEL = {
+  0: { t: 0.5, dist: 26, sign: -1 },
+  1: { t: 0.5, dist: 26, sign: -1 },
+  2: { t: 0.55, dist: 32, sign: 1 },
+  3: { t: 0.58, dist: 34, sign: 1 },
+  4: { t: 0.58, dist: 34, sign: -1 },
+  5: { t: 0.55, dist: 32, sign: -1 },
+  6: { t: 0.5, dist: 28, sign: 1 }
+};
+
+function rootOf(parents, x) {
+  let guard = 0;
+  while (parents[x] !== x && guard++ < 8) x = parents[x];
+  return x;
+}
+
+function simulate() {
+  const p = [0, 1, 2, 3, 4, 5];
+  function find(x) {
+    if (p[x] !== x) p[x] = find(p[x]);
+    return p[x];
+  }
+  function union(x, y) {
+    const rx = find(x);
+    const ry = find(y);
+    if (rx !== ry) p[rx] = ry;
+  }
+  const events = [];
+  for (const [u, v] of [[1, 2], [2, 3], [2, 5], [1, 4]]) {
+    find(u);
+    find(v);
+    events.push({ mark: "find", p: p.slice() });
+    union(u, v);
+    events.push({ mark: "union", p: p.slice() });
+  }
+  return events;
+}
+
+const STEPS = [];
+const blankVars = {
+  n: "5", u: "—", v: "—", w: "—",
+  fu: "—", fv: "—", mst: "—", cnt: "—", result: "—"
+};
+const state = {
+  parents: [0, 1, 2, 3, 4, 5],
+  chosen: [],
+  consoleLines: [],
+  sorted: false,
+  activeEdge: null,
+  unexamined: false,
+  reject: [],
+  ufReady: false,
+  vars: { ...blankVars }
+};
+
+function add(o) {
+  if (o.parents) state.parents = o.parents.slice();
+  if (o.choose != null) state.chosen = state.chosen.concat(o.choose);
+  if (o.out) state.consoleLines = state.consoleLines.concat(o.out);
+  if (o.sorted != null) state.sorted = o.sorted;
+  if ("activeEdge" in o) state.activeEdge = o.activeEdge;
+  if (o.unexamined != null) state.unexamined = o.unexamined;
+  if (o.reject) state.reject = o.reject.slice();
+  if (o.ufReady != null) state.ufReady = o.ufReady;
+  if (o.vars) Object.assign(state.vars, o.vars);
+  const active = state.activeEdge == null ? null : EDGE_BY_ID[state.activeEdge];
+  STEPS.push({
+    title: o.title,
+    text: o.text,
+    detail: o.detail || "",
+    lines: o.lines || [],
+    also: o.also || [],
+    scrollTo: o.scrollTo || (o.lines && o.lines[0]) || 1,
+    parents: state.parents.slice(),
+    chosen: state.chosen.slice(),
+    consoleLines: state.consoleLines.slice(),
+    sorted: state.sorted,
+    activeEdge: state.activeEdge,
+    unexamined: state.unexamined,
+    reject: state.reject.slice(),
+    ufReady: state.ufReady,
+    vars: { ...state.vars },
+    hot: o.hot ? o.hot.slice() : (active ? [active.u, active.v] : []),
+    read: o.read ? o.read.slice() : [],
+    changed: o.changed ? o.changed.slice() : [],
+    hypo: !!o.hypo,
+    mark: o.mark || ""
+  });
+}
+
+add({
+  title: "读入顶点数和边",
+  text: "main 里 n = 5，边表有 7 条。图已经画在左边，但并查集还没建立，每个顶点暂时只是一个点。",
+  lines: [101, 103, 104, 105, 106, 107, 108, 109, 110, 111],
+  scrollTo: 103
+});
+add({
+  title: "调用 Kruskal",
+  text: "第 113 行进入 Kruskal(n, edges)。排序、建并查集、选边都发生在这个函数内部。",
+  lines: [113],
+  scrollTo: 113
+});
+add({
+  title: "按权值从小到大排序",
+  text: "sort 使用 Edge::operator<，比较的是权值 w。排序后的顺序是 1—2(2)、2—3(3)、2—5(5)、1—4(6)、3—5(7)、2—4(8)、4—5(9)。",
+  lines: [55],
+  also: [13, 14],
+  scrollTo: 55,
+  sorted: true
+});
+add({
+  title: "创建并查集对象",
+  text: "第 57 行执行 UnionFind uf(n)，进入构造函数。n = 5，parent 的长度是 n + 1 = 6，下标 0 留空。",
+  lines: [57],
+  also: [25],
+  scrollTo: 57
+});
+add({
+  title: "每个顶点自成一个集合",
+  text: "循环令 parent[i] = i。此时有 5 个集合：{1}、{2}、{3}、{4}、{5}。顶点颜色各不相同。",
+  lines: [27, 28],
+  also: [26],
+  scrollTo: 28,
+  ufReady: true,
+  changed: [1, 2, 3, 4, 5]
+});
+add({
+  title: "累加器清零",
+  text: "mstWeight 用来累加已选边的权值，edgeCount 记录已经选了几条边。最小生成树正好需要 n − 1 = 4 条边。",
+  lines: [59, 60],
+  scrollTo: 59,
+  vars: { mst: "0", cnt: "0" }
+});
+add({
+  title: "输出表头",
+  text: "先打印一行提示。后面每选中一条边，就在这行下面输出“起点 - 终点 : 权值”。",
+  lines: [62],
+  scrollTo: 62,
+  out: "最小生成树的边："
+});
+add({
+  title: "考察最短边 1 — 2",
+  text: "for 循环按排序后的顺序取边。第一条是权值 2 的边，u = 1，v = 2，w = 2。",
+  lines: [66, 67, 68],
+  also: [64],
+  scrollTo: 66,
+  activeEdge: 0,
+  vars: { u: "1", v: "2", w: "2", fu: "—", fv: "—" }
+});
+add({
+  title: "Find(1) 与 Find(2)",
+  text: "两个根都是自己：Find(1) = 1，Find(2) = 2。根不同，说明不在同一集合，连上这条边不会形成环。",
+  lines: [34, 37],
+  also: [70, 71],
+  scrollTo: 34,
+  read: [1, 2],
+  vars: { fu: "1", fv: "2" },
+  mark: "find",
+  detail: "Find(1)：parent[1] = 1，直接返回 1\nFind(2)：parent[2] = 2，直接返回 2\n1 ≠ 2，第 71 行条件成立"
+});
+add({
+  title: "Union(1, 2)",
+  text: "rx = 1，ry = 2，执行 parent[1] = 2。顶点 1 挂到顶点 2 下面，集合合并成 {1, 2}。",
+  lines: [42, 43, 46],
+  also: [74],
+  scrollTo: 46,
+  parents: [0, 2, 2, 3, 4, 5],
+  changed: [1],
+  read: [1, 2],
+  hot: [1, 2],
+  mark: "union",
+  detail: "Union(1, 2)\nrx = Find(1) = 1\nry = Find(2) = 2\nparent[1] = 2"
+});
+add({
+  title: "记下第一条树边",
+  text: "mstWeight = 0 + 2 = 2，edgeCount 变为 1。输出“1 - 2 : 2”。这条边画成绿色。",
+  lines: [76, 77, 79, 80, 81],
+  scrollTo: 76,
+  activeEdge: null,
+  choose: 0,
+  vars: { mst: "2", cnt: "1" },
+  out: "1 - 2 : 2"
+});
+add({
+  title: "还没选满 4 条边",
+  text: "edgeCount 是 1，n − 1 是 4，条件为假。第 85 行的 break 不执行，回到循环取下一条边。",
+  lines: [84],
+  scrollTo: 84,
+  detail: "edgeCount = 1\nn - 1 = 4\n1 == 4 为假，不执行 break"
+});
+add({
+  title: "考察边 2 — 3",
+  text: "下一条是权值 3 的边，u = 2，v = 3，w = 3。",
+  lines: [66, 67, 68],
+  also: [64],
+  scrollTo: 66,
+  activeEdge: 1,
+  vars: { u: "2", v: "3", w: "3", fu: "—", fv: "—" }
+});
+add({
+  title: "Find(2) 与 Find(3)",
+  text: "Find(2) = 2，Find(3) = 3。根不同，可以选。顶点 1 虽然属于 2 这一侧，但这次查找没有访问它。",
+  lines: [34, 37],
+  also: [71],
+  scrollTo: 34,
+  read: [2, 3],
+  vars: { fu: "2", fv: "3" },
+  mark: "find",
+  detail: "Find(2)：parent[2] = 2，返回 2\nFind(3)：parent[3] = 3，返回 3\n2 ≠ 3，可以加入"
+});
+add({
+  title: "Union(2, 3)",
+  text: "parent[2] = 3。顶点 1 仍然指向 2，所以 1 的根也变成 3。现在的集合是 {1, 2, 3}、{4}、{5}。",
+  lines: [46],
+  also: [74, 42, 43],
+  scrollTo: 46,
+  parents: [0, 2, 3, 3, 4, 5],
+  changed: [2],
+  hot: [2, 3],
+  mark: "union",
+  detail: "rx = Find(2) = 2\nry = Find(3) = 3\nparent[2] = 3\n顶点 1 的链条：1 → 2 → 3"
+});
+add({
+  title: "记下第二条树边",
+  text: "mstWeight = 2 + 3 = 5，edgeCount = 2。输出“2 - 3 : 3”。",
+  lines: [76, 77, 79, 80, 81],
+  scrollTo: 76,
+  activeEdge: null,
+  choose: 1,
+  vars: { mst: "5", cnt: "2" },
+  out: "2 - 3 : 3"
+});
+add({
+  title: "继续循环",
+  text: "edgeCount 是 2，还没有到 4，break 不执行。",
+  lines: [84],
+  scrollTo: 84,
+  detail: "edgeCount = 2，n - 1 = 4，条件为假"
+});
+add({
+  title: "考察边 2 — 5",
+  text: "下一条是权值 5 的边，u = 2，v = 5，w = 5。",
+  lines: [66, 67, 68],
+  also: [64],
+  scrollTo: 66,
+  activeEdge: 4,
+  vars: { u: "2", v: "5", w: "5", fu: "—", fv: "—" }
+});
+add({
+  title: "Find(2) 走到 3",
+  text: "parent[2] 已经是 3，所以 Find(2) 返回 3。Find(5) = 5。根不同，这条边可以加入。回写 parent[2] = 3，数值没有变化。",
+  lines: [34, 35, 37],
+  also: [71],
+  scrollTo: 35,
+  read: [2, 3, 5],
+  hot: [2, 3, 5],
+  vars: { fu: "3", fv: "5" },
+  mark: "find",
+  detail: "Find(2)：parent[2] = 3 ≠ 2\n  Find(3)：parent[3] = 3，返回 3\n回写 parent[2] = 3（原来就是 3）\nFind(2) = 3\nFind(5) = 5\n3 ≠ 5，可以加入"
+});
+add({
+  title: "Union(2, 5)",
+  text: "两个根是 3 和 5，执行 parent[3] = 5。链条变成 1 → 2 → 3 → 5。顶点 4 仍然单独成集合。",
+  lines: [42, 43, 46],
+  also: [74],
+  scrollTo: 46,
+  parents: [0, 2, 3, 5, 4, 5],
+  changed: [3],
+  hot: [2, 5],
+  mark: "union",
+  detail: "rx = Find(2) = 3\nry = Find(5) = 5\nparent[3] = 5"
+});
+add({
+  title: "记下第三条树边",
+  text: "mstWeight = 5 + 5 = 10，edgeCount = 3。输出“2 - 5 : 5”。",
+  lines: [76, 77, 79, 80, 81],
+  scrollTo: 76,
+  activeEdge: null,
+  choose: 4,
+  vars: { mst: "10", cnt: "3" },
+  out: "2 - 5 : 5"
+});
+add({
+  title: "还差一条边",
+  text: "edgeCount 是 3，n − 1 是 4，继续取下一条。",
+  lines: [84],
+  scrollTo: 84,
+  detail: "edgeCount = 3，n - 1 = 4，条件为假"
+});
+add({
+  title: "考察边 1 — 4",
+  text: "下一条是权值 6 的边，u = 1，v = 4，w = 6。顶点 1 现在的父指针链条是 1 → 2 → 3 → 5。",
+  lines: [66, 67, 68],
+  also: [64],
+  scrollTo: 66,
+  activeEdge: 2,
+  vars: { u: "1", v: "4", w: "6", fu: "—", fv: "—" },
+  hot: [1, 2, 3, 5, 4],
+  read: [1, 2, 3, 5]
+});
+add({
+  title: "Find(1)：先向下找到根",
+  text: "同一次 Find(1) 先递归向下：1 指向 2，2 指向 3，3 指向 5，5 的父节点是自己。根是 5。这一步还没有把路径压缩写回去。",
+  lines: [34, 35],
+  also: [71],
+  scrollTo: 35,
+  read: [1, 2, 3, 5],
+  hot: [1, 2, 3, 5],
+  detail: "Find(1)：parent[1] = 2，继续\n  Find(2)：parent[2] = 3，继续\n    Find(3)：parent[3] = 5，继续\n      Find(5)：parent[5] = 5，返回 5\n根是 5。接下来在返回的路上做路径压缩。"
+});
+add({
+  title: "返回时做路径压缩",
+  text: "返回途中把沿途结点直接挂到根上：parent[1] 和 parent[2] 改为 5，parent[3] 本来就是 5。Find(4) = 4。5 ≠ 4，两端不在同一集合。",
+  lines: [35, 37],
+  also: [71],
+  scrollTo: 35,
+  parents: [0, 5, 5, 5, 4, 5],
+  changed: [1, 2],
+  read: [4],
+  hot: [1, 4],
+  vars: { fu: "5", fv: "4" },
+  mark: "find",
+  detail: "回写 parent[3] = 5（原来已是 5）\n回写 parent[2] = 5（原来是 3）\n回写 parent[1] = 5（原来是 2）\nFind(1) = 5\nFind(4)：parent[4] = 4，返回 4\n5 ≠ 4，第 71 行条件成立"
+});
+add({
+  title: "Union(1, 4)",
+  text: "两个根是 5 和 4，执行 parent[5] = 4。五个顶点合成一个集合。1、2、3 仍指向 5，再向上一步才到 4。",
+  lines: [42, 43, 46],
+  also: [74],
+  scrollTo: 46,
+  parents: [0, 5, 5, 5, 4, 4],
+  changed: [5],
+  hot: [1, 4],
+  mark: "union",
+  detail: "rx = Find(1) = 5\nry = Find(4) = 4\nparent[5] = 4\nUnion 只连接两个根，不会把 1、2、3 立刻改成指向 4"
+});
+add({
+  title: "第四条边选入，树已经完成",
+  text: "mstWeight = 10 + 6 = 16，edgeCount = 4。输出“1 - 4 : 6”。边数已经达到 n − 1。",
+  lines: [76, 77, 79, 80, 81],
+  scrollTo: 76,
+  activeEdge: null,
+  choose: 2,
+  vars: { mst: "16", cnt: "4" },
+  out: "1 - 4 : 6"
+});
+add({
+  title: "选满 n − 1 条边，跳出循环",
+  text: "第 84 行条件成立，执行 break。后面的 3—5(7)、2—4(8)、4—5(9) 不会再被考察。",
+  lines: [84, 85],
+  scrollTo: 85,
+  unexamined: true,
+  detail: "edgeCount = 4\nn - 1 = 4\n条件成立，执行 break"
+});
+add({
+  title: "图是连通的",
+  text: "edgeCount 已经等于 n − 1，第 91 行的 if 为假。不会打印“图不连通”，也不会 return -1。",
+  lines: [91],
+  scrollTo: 91,
+  detail: "edgeCount != n - 1\n4 != 4 为假\n第 92、93 行不执行"
+});
+add({
+  title: "返回总权值 16",
+  text: "Kruskal 返回 mstWeight。这个返回值回到 main，赋给 result。",
+  lines: [96],
+  also: [113],
+  scrollTo: 96
+});
+add({
+  title: "result 不等于 -1",
+  text: "result = 16，第 115 行条件成立，准备输出总权值。",
+  lines: [115],
+  also: [113],
+  scrollTo: 115,
+  vars: { result: "16" }
+});
+add({
+  title: "输出最小生成树的总权值",
+  text: "打印“最小生成树的总权值：16”。四条绿色边就是求得的最小生成树。",
+  lines: [116, 117],
+  scrollTo: 116,
+  out: "最小生成树的总权值：16"
+});
+add({
+  title: "程序结束",
+  text: "return 0。选中的边是 1—2(2)、2—3(3)、2—5(5)、1—4(6)，总和 2 + 3 + 5 + 6 = 16。它们连通全部 5 个顶点，并且没有环。",
+  lines: [120],
+  scrollTo: 120
+});
+add({
+  title: "对照：剩下的三条边为什么不能要",
+  text: "这三步程序没有执行，只用来说明 break 之前的判断。3—5、2—4、4—5 的两端根都已经是 4，Find 的结果相同，第 71 行条件会为假，它们会构成环。",
+  lines: [71],
+  also: [85],
+  scrollTo: 71,
+  hypo: true,
+  reject: [5, 3, 6],
+  vars: { u: "3", v: "5", w: "7", fu: "4", fv: "4" },
+  detail: "以下判断没有发生，因为第 85 行已经 break。\n3 — 5 权值 7：两端的根都是 4，跳过\n2 — 4 权值 8：两端的根都是 4，跳过\n4 — 5 权值 9：两端的根都是 4，跳过\n根相同就表示已经连通，再连一条边就会成环。"
+});
+
+function checkTrace() {
+  const problems = [];
+  if (SRC.length !== 121) problems.push("源码行数是 " + SRC.length + "，预期 121");
+  const expectLine = [
+    [14, "return w"],
+    [28, "parent[i] = i"],
+    [35, "Find(parent"],
+    [46, "parent[rx] = ry"],
+    [55, "sort"],
+    [71, "Find(u)"],
+    [85, "break"],
+    [96, "return mstWeight"],
+    [113, "Kruskal"],
+    [117, "result"]
+  ];
+  expectLine.forEach(([n, piece]) => {
+    if (!SRC[n - 1] || SRC[n - 1].indexOf(piece) < 0) {
+      problems.push("第 " + n + " 行不含「" + piece + "」");
+    }
+  });
+  const sim = simulate();
+  const marked = STEPS.filter((s) => s.mark);
+  if (marked.length !== sim.length) {
+    problems.push("标记步数 " + marked.length + " 与模拟事件 " + sim.length + " 不一致");
+  } else {
+    marked.forEach((s, i) => {
+      const got = s.parents.slice(1).join(",");
+      const want = sim[i].p.slice(1).join(",");
+      if (s.mark !== sim[i].mark || got !== want) {
+        problems.push(s.title + " 得到 parent[" + got + "]，模拟是 " + sim[i].mark + " [" + want + "]");
+      }
+    });
+  }
+  const lastReal = [...STEPS].reverse().find((s) => !s.hypo);
+  const sum = lastReal.chosen.reduce((acc, id) => acc + EDGE_BY_ID[id].w, 0);
+  if (sum !== 16 || lastReal.vars.mst !== "16" || lastReal.chosen.length !== 4) {
+    problems.push("最小生成树权值核对失败");
+  }
+  return problems;
+}
+
+function colorize(text) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  if (/^\s*#include/.test(text)) return `<span class="pp">${esc(text)}</span>`;
+  const paint = (s) => esc(s)
+    .replace(/\b(int|class|struct|void|bool|return|if|for|using|namespace|private|public|const|break|operator)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(\d+)\b/g, '<span class="num">$1</span>');
+  let out = "";
+  const re = /("(?:\\.|[^"\\])*")|(\/\/.*$)/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    out += paint(text.slice(last, m.index));
+    out += m[1]
+      ? `<span class="str">${esc(m[1])}</span>`
+      : `<span class="cmt">${esc(m[2])}</span>`;
+    last = m.index + m[0].length;
+  }
+  out += paint(text.slice(last));
+  return out || " ";
+}
+
+const codeHost = document.getElementById("codeScroll");
+const codeInner = document.getElementById("codeInner");
+codeInner.innerHTML = SRC.map((line, i) => {
+  return `<div class="line" data-line="${i + 1}"><span class="no">${i + 1}</span><span>${colorize(line)}</span></div>`;
+}).join("");
+
+const svg = document.getElementById("graph");
+const NS = "http://www.w3.org/2000/svg";
+function el(name, attrs) {
+  const node = document.createElementNS(NS, name);
+  Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, v));
+  return node;
+}
+const edgeLayer = el("g", { id: "edges" });
+const pillLayer = el("g", { id: "pills" });
+const nodeLayer = el("g", { id: "nodes" });
+svg.append(edgeLayer, pillLayer, nodeLayer);
+
+function trimmed(u, v, r) {
+  const a = POS[u], b = POS[v];
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  return {
+    x1: a.x + ux * r, y1: a.y + uy * r,
+    x2: b.x - ux * r, y2: b.y - uy * r,
+    mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2,
+    nx: -uy, ny: ux
+  };
+}
+
+const edgeNodes = {};
+const pillNodes = {};
+EDGES.forEach((e) => {
+  const line = el("line", { class: "edge", "data-id": e.id });
+  edgeLayer.append(line);
+  const g = el("g", { class: "pill" });
+  const rect = el("rect", { width: 26, height: 20, rx: 7 });
+  const text = el("text", {});
+  text.textContent = String(e.w);
+  g.append(rect, text);
+  pillLayer.append(g);
+  edgeNodes[e.id] = line;
+  pillNodes[e.id] = { g, rect, text };
+  const a = POS[e.u];
+  const b = POS[e.v];
+  const spec = LABEL[e.id];
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const x = a.x + dx * spec.t + (-dy / len) * spec.dist * spec.sign;
+  const y = a.y + dy * spec.t + (dx / len) * spec.dist * spec.sign;
+  rect.setAttribute("x", x - 13);
+  rect.setAttribute("y", y - 10);
+  text.setAttribute("x", x);
+  text.setAttribute("y", y + 0.5);
+});
+
+[1, 2, 3, 4, 5].forEach((id) => {
+  const g = el("g", { class: "node", "data-id": id });
+  g.append(el("circle", { cx: POS[id].x, cy: POS[id].y, r: 26 }));
+  const text = el("text", { x: POS[id].x, y: POS[id].y + 1 });
+  text.textContent = String(id);
+  g.append(text);
+  nodeLayer.append(g);
+});
+
+function edgeVisual(step, id) {
+  if (step.chosen.includes(id)) return "chosen";
+  if (step.activeEdge === id) return "active";
+  if (step.reject.includes(id)) return "reject";
+  if (step.unexamined) return "skip";
+  return "idle";
+}
+
+function statusOf(step, id) {
+  const ord = step.chosen.indexOf(id);
+  if (ord >= 0) return { cls: "ok", text: "已选入 #" + (ord + 1) };
+  if (step.activeEdge === id) return { cls: "run", text: "考察中" };
+  if (step.reject.includes(id)) return { cls: "bad", text: "会成环" };
+  if (step.unexamined) return { cls: "", text: "未考察" };
+  if (!step.sorted) return { cls: "", text: "未排序" };
+  return { cls: "", text: "待考察" };
+}
+
+const VAR_META = [
+  ["n", "n"],
+  ["u", "u"],
+  ["v", "v"],
+  ["w", "w"],
+  ["fu", "Find(u)"],
+  ["fv", "Find(v)"],
+  ["mst", "mstWeight"],
+  ["cnt", "edgeCount"],
+  ["result", "result"]
+];
+
+function render(index) {
+  const step = STEPS[index];
+  document.getElementById("posLabel").textContent = (index + 1) + " / " + STEPS.length;
+  document.getElementById("scrub").value = String(index);
+  document.getElementById("btnPrev").disabled = index === 0;
+  document.getElementById("btnNext").disabled = index === STEPS.length - 1;
+
+  document.getElementById("exTitle").textContent = step.title;
+  document.getElementById("exText").textContent = step.text;
+  document.getElementById("kicker").textContent = step.hypo
+    ? "对照  " + (index + 1) + " / " + STEPS.length
+    : "步骤  " + (index + 1) + " / " + STEPS.length;
+  document.getElementById("explain").classList.toggle("hypo", step.hypo);
+
+  const mstBadge = document.getElementById("mstBadge");
+  mstBadge.classList.toggle("done", step.vars.mst === "16");
+  document.getElementById("mstNum").textContent = step.vars.mst;
+  document.getElementById("cntNum").textContent = step.vars.cnt === "—" ? "—" : step.vars.cnt + " / 4";
+  document.getElementById("graphHint").textContent = step.ufReady
+    ? "相同颜色的顶点属于同一个集合"
+    : "并查集尚未建立";
+
+  const picked = step.chosen.map((id, i) => {
+    const e = EDGE_BY_ID[id];
+    return (i + 1) + ". " + e.u + "—" + e.v + "(" + e.w + ")";
+  });
+  document.getElementById("picked").innerHTML = picked.length
+    ? "已选边：<b>" + picked.join("，") + "</b>"
+    : "还没有边被选入最小生成树。";
+
+  document.getElementById("vars").innerHTML = VAR_META.map(([key, label]) => {
+    return `<div class="var"><span>${label}</span><b>${step.vars[key]}</b></div>`;
+  }).join("");
+
+  codeHost.classList.add("code");
+  codeHost.classList.toggle("dim", step.lines.length + step.also.length > 0);
+  codeInner.querySelectorAll(".line").forEach((row) => {
+    const n = Number(row.dataset.line);
+    row.classList.toggle("hi", step.lines.includes(n));
+    row.classList.toggle("also", step.also.includes(n));
+  });
+  const row = codeInner.querySelector(`[data-line="${step.scrollTo}"]`);
+  if (row) {
+    const top = row.offsetTop - codeHost.clientHeight / 2 + row.clientHeight / 2;
+    codeHost.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }
+
+  EDGES.forEach((e) => {
+    const vis = edgeVisual(step, e.id);
+    const line = edgeNodes[e.id];
+    line.setAttribute("class", "edge " + (vis === "idle" ? "" : vis));
+    const geo = trimmed(e.u, e.v, 28);
+    line.setAttribute("x1", geo.x1);
+    line.setAttribute("y1", geo.y1);
+    line.setAttribute("x2", geo.x2);
+    line.setAttribute("y2", geo.y2);
+    const pill = pillNodes[e.id];
+    const stroke = { chosen: "#047857", active: "#ea580c", reject: "#dc2626", skip: "#cbd5e1", idle: "#94a3b8" }[vis];
+    const fill = { chosen: "#a7f3d0", active: "#fed7aa", reject: "#fecaca", skip: "#f8fafc", idle: "#ffffff" }[vis];
+    const ink = { chosen: "#047857", active: "#c2410c", reject: "#b91c1c", skip: "#94a3b8", idle: "#334155" }[vis];
+    pill.rect.setAttribute("fill", fill);
+    pill.rect.setAttribute("stroke", stroke);
+    pill.text.setAttribute("fill", ink);
+    if (vis === "chosen" || vis === "active") edgeLayer.append(line);
+  });
+
+  nodeLayer.querySelectorAll(".node").forEach((g) => {
+    const id = Number(g.dataset.id);
+    const color = step.ufReady ? ROOT_COLOR[rootOf(step.parents, id)] : "#64748b";
+    g.querySelector("circle").setAttribute("fill", color);
+    g.classList.toggle("hot", step.hot.includes(id));
+  });
+
+  const order = step.sorted ? ORDER_SORTED : EDGES.map((e) => e.id);
+  document.getElementById("edgeHint").textContent = step.sorted
+    ? "已按权值从小到大排序"
+    : "调用 sort 之前保持输入顺序";
+  document.getElementById("edgeBody").innerHTML = order.map((id, i) => {
+    const e = EDGE_BY_ID[id];
+    const st = statusOf(step, id);
+    return `<tr class="${st.cls}" data-edge="${id}"><td class="numc">${i + 1}</td><td>${e.u} — ${e.v}</td><td class="numc">${e.w}</td><td><span class="tag">${st.text}</span></td></tr>`;
+  }).join("");
+  const uf = document.getElementById("uf");
+  if (!step.ufReady) {
+    uf.innerHTML = `<p style="margin:8px 0;color:#5c6b80">执行到构造函数之前，parent 数组还不存在。五个顶点各自独立，只是图上的点。</p>`;
+  } else {
+    const indexes = [1, 2, 3, 4, 5].map((i) => {
+      return `<span class="idx" style="box-shadow:inset 0 -3px 0 ${ROOT_COLOR[i]}">${i}</span>`;
+    }).join("");
+    const cells = [1, 2, 3, 4, 5].map((i) => {
+      const cls = [
+        "cell",
+        step.changed.includes(i) ? "flash" : "",
+        step.read.includes(i) ? "read" : ""
+      ].filter(Boolean).join(" ");
+      return `<span class="${cls}">${step.parents[i]}</span>`;
+    }).join("");
+    const chains = [1, 2, 3, 4, 5].map((i) => {
+      const seq = [i];
+      let x = i, guard = 0;
+      while (step.parents[x] !== x && guard++ < 8) {
+        x = step.parents[x];
+        seq.push(x);
+      }
+      return `<div class="chain">${seq.join(" → ")}</div>`;
+    }).join("");
+    const groups = {};
+    for (let i = 1; i <= 5; i++) {
+      const r = rootOf(step.parents, i);
+      (groups[r] || (groups[r] = [])).push(i);
+    }
+    const sets = Object.values(groups)
+      .sort((a, b) => a[0] - b[0])
+      .map((arr) => {
+        const r = rootOf(step.parents, arr[0]);
+        return `<span class="set" style="background:${ROOT_COLOR[r]}">{ ${arr.join(", ")} }</span>`;
+      }).join("");
+    uf.innerHTML = `
+      <div class="par"><span></span>${indexes}</div>
+      <div class="par" style="margin-top:6px"><span class="lab">parent</span>${cells}</div>
+      <div class="chains">${chains}</div>
+      <div class="sets">${sets}</div>
+      ${step.detail ? `<pre class="trace">${step.detail.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>` : ""}`;
+  }
+  if (!step.ufReady && step.detail) {
+    uf.insertAdjacentHTML("beforeend", `<pre class="trace">${step.detail.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</pre>`);
+  }
+
+  const consoleEl = document.getElementById("console");
+  if (!step.consoleLines.length) {
+    consoleEl.innerHTML = `<div class="muted">（尚无输出）</div>`;
+  } else {
+    consoleEl.innerHTML = step.consoleLines.map((line, i) => {
+      const fresh = i === step.consoleLines.length - 1 ? " fresh" : "";
+      return `<div class="${fresh.trim()}">${line}</div>`;
+    }).join("");
+  }
+}
+
+let index = 0;
+let playing = false;
+let timer = null;
+const btnPlay = document.getElementById("btnPlay");
+
+function pause() {
+  playing = false;
+  clearTimeout(timer);
+  btnPlay.textContent = "播放";
+}
+function schedule() {
+  clearTimeout(timer);
+  if (!playing) return;
+  const delay = Number(document.getElementById("speed").value);
+  timer = setTimeout(() => {
+    if (index >= STEPS.length - 1) {
+      pause();
+      return;
+    }
+    index += 1;
+    render(index);
+    schedule();
+  }, delay);
+}
+function play() {
+  if (index >= STEPS.length - 1) index = 0;
+  playing = true;
+  btnPlay.textContent = "暂停";
+  render(index);
+  schedule();
+}
+function go(n) {
+  pause();
+  index = Math.max(0, Math.min(STEPS.length - 1, n));
+  render(index);
+}
+
+document.getElementById("btnReset").onclick = () => go(0);
+document.getElementById("btnPrev").onclick = () => go(index - 1);
+document.getElementById("btnNext").onclick = () => go(index + 1);
+btnPlay.onclick = () => { if (playing) pause(); else play(); };
+document.getElementById("scrub").oninput = (e) => go(Number(e.target.value));
+document.getElementById("speed").oninput = () => { if (playing) schedule(); };
+document.addEventListener("keydown", (e) => {
+  if (e.target.matches("input, textarea")) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); go(index + 1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); go(index - 1); }
+  else if (e.key === " ") { e.preventDefault(); btnPlay.click(); }
+  else if (e.key === "Home") { e.preventDefault(); go(0); }
+  else if (e.key === "End") { e.preventDefault(); go(STEPS.length - 1); }
+});
+
+const problems = checkTrace();
+if (problems.length) {
+  const err = document.getElementById("err");
+  err.style.display = "block";
+  err.textContent = problems.join("；");
+}
+document.getElementById("scrub").max = String(STEPS.length - 1);
+render(0);
+</script>
+</body>
+</html>
