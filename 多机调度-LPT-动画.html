@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>多机调度 · LPT 算法动画</title>
+<style>
+  :root {
+    --ink: #142033;
+    --muted: #5c6b80;
+    --line: #dbe3ee;
+    --card: #ffffff;
+    --bg: #e8eef6;
+    --green: #047857;
+    --blue: #0369a1;
+    --amber: #c2410c;
+    --purple: #6d28d9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 420px at 8% -8%, #dbeafe 0%, transparent 55%),
+      radial-gradient(900px 360px at 100% 0%, #ffedd5 0%, transparent 50%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 18px;
+    padding: 14px 20px 12px;
+    color: #fff;
+    background: linear-gradient(115deg, #0f2744 0%, #1e3a5f 55%, #9a3412 100%);
+  }
+  header h1 { margin: 0; font-size: 21px; font-weight: 720; }
+  header p { margin: 3px 0 0; color: rgba(255,255,255,.78); font-size: 13px; }
+  .brand { margin-right: auto; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  button {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.35);
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover { background: rgba(255,255,255,.12); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary {
+    background: #fff7ed;
+    color: #9a3412;
+    border-color: #fff7ed;
+    font-weight: 700;
+    min-width: 74px;
+  }
+  .speed {
+    display: flex; align-items: center; gap: 8px;
+    color: rgba(255,255,255,.88); font-size: 13px;
+  }
+  .speed input { width: 100px; accent-color: #fdba74; }
+  .pos {
+    min-width: 70px; text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255,255,255,.9); font-size: 13px;
+  }
+  .sticky-top { position: sticky; top: 0; z-index: 20; background: #e8eef6; }
+  .scrub-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 20px 0;
+  }
+  .scrub-row input { flex: 1; accent-color: #c2410c; }
+  .page { padding: 10px 16px 22px; }
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(320px, .85fr);
+    gap: 14px;
+  }
+  @media (max-width: 980px) {
+    .stage { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 10px 28px rgba(15, 35, 60, .06);
+  }
+  .card-h {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 12px 14px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .card-h h2 { margin: 0; font-size: 15px; }
+  .card-h span { color: var(--muted); font-size: 12px; }
+  .card-b { padding: 12px 14px 14px; }
+  .jobs-row {
+    display: flex; flex-wrap: wrap; gap: 8px; min-height: 52px;
+    align-items: center;
+  }
+  .job {
+    display: inline-flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    min-width: 54px; height: 48px; padding: 0 8px;
+    border-radius: 10px; border: 1px solid #cbd5e1;
+    background: #f8fafc; color: var(--ink);
+    font-size: 12px; font-weight: 650;
+    transition: transform .25s ease, opacity .25s ease, box-shadow .25s ease;
+  }
+  .job b { font-size: 14px; }
+  .job.pending { opacity: .35; filter: grayscale(.3); }
+  .job.current {
+    border-color: #ea580c; background: #fff7ed;
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, .18);
+    transform: translateY(-2px) scale(1.04);
+  }
+  .job.done {
+    border-color: transparent; color: #fff;
+  }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px 16px;
+    margin-top: 10px; color: var(--muted); font-size: 12px;
+  }
+  .dot {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 50%; margin-right: 5px; vertical-align: middle;
+  }
+  .gantt-wrap { overflow-x: auto; }
+  .gantt {
+    position: relative;
+    min-width: 560px;
+  }
+  .axis {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 8px;
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .ticks {
+    position: relative; height: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+  .tick {
+    position: absolute; top: 0; transform: translateX(-50%);
+    text-align: center; white-space: nowrap;
+  }
+  .tick::before {
+    content: "";
+    display: block; width: 1px; height: 6px;
+    background: #94a3b8; margin: 0 auto 2px;
+  }
+  .machine {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 8px;
+    align-items: center;
+    margin: 10px 0;
+  }
+  .machine-label {
+    font-size: 13px; font-weight: 700;
+  }
+  .machine-label small {
+    display: block; font-weight: 500; color: var(--muted); font-size: 11px;
+  }
+  .track {
+    position: relative;
+    height: 46px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  .block {
+    position: absolute; top: 4px; bottom: 4px;
+    border-radius: 8px; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,.12);
+    transition: left .35s ease, width .35s ease, opacity .25s ease;
+    white-space: nowrap; overflow: hidden;
+  }
+  .makespan-line {
+    position: absolute; top: 0; bottom: 0; width: 2px;
+    background: #dc2626; z-index: 5;
+    box-shadow: 0 0 0 1px rgba(220,38,38,.15);
+  }
+  .makespan-tag {
+    position: absolute; top: -18px; transform: translateX(-50%);
+    background: #dc2626; color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .stat {
+    background: #f8fafc; border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 12px;
+  }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .stat .v { font-size: 20px; font-weight: 750; margin-top: 2px; }
+  .step-box {
+    background: #fff7ed; border: 1px solid #fed7aa;
+    border-radius: 12px; padding: 12px 14px;
+    min-height: 88px; line-height: 1.55; font-size: 14px;
+  }
+  .step-box strong { color: #9a3412; }
+  .log {
+    margin-top: 12px; max-height: 280px; overflow: auto;
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  .log table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .log th, .log td {
+    padding: 8px 10px; border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+  .log th { background: #f8fafc; color: var(--muted); font-weight: 650; position: sticky; top: 0; }
+  .log tr.active { background: #fff7ed; }
+  .log tr.done td { color: #64748b; }
+  .hint {
+    margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.5;
+  }
+  .footer-note {
+    margin-top: 12px; text-align: center;
+    color: var(--muted); font-size: 12px;
+  }
+</style>
+</head>
+<body>
+  <div class="sticky-top">
+    <header>
+      <div class="brand">
+        <h1>多机调度 · LPT 算法动画</h1>
+        <p>最长处理时间优先 · 每次分配给当前最空闲机器 · 课件实例逐步演示</p>
+      </div>
+      <div class="controls">
+        <button id="btnReset" type="button">重置</button>
+        <button id="btnPrev" type="button">上一步</button>
+        <button id="btnPlay" class="primary" type="button">播放</button>
+        <button id="btnNext" type="button">下一步</button>
+        <label class="speed">速度
+          <input id="speed" type="range" min="0.4" max="2.2" step="0.1" value="1" />
+        </label>
+        <div class="pos" id="pos">0 / 0</div>
+      </div>
+    </header>
+    <div class="scrub-row">
+      <input id="scrub" type="range" min="0" max="0" value="0" />
+    </div>
+  </div>
+
+  <div class="page">
+    <div class="stage">
+      <section class="card">
+        <div class="card-h">
+          <h2>甘特图调度过程</h2>
+          <span>3 台机器 · 7 个作业</span>
+        </div>
+        <div class="card-b">
+          <div style="margin-bottom:8px;font-size:13px;color:var(--muted);">待处理 / 已排序作业队列</div>
+          <div class="jobs-row" id="jobQueue"></div>
+          <div class="legend">
+            <span><i class="dot" style="background:#64748b"></i>待分配</span>
+            <span><i class="dot" style="background:#ea580c"></i>当前作业</span>
+            <span><i class="dot" style="background:#0369a1"></i>已上机</span>
+            <span><i class="dot" style="background:#dc2626"></i>完工时间线</span>
+          </div>
+
+          <div class="gantt-wrap" style="margin-top:16px;">
+            <div class="gantt" id="gantt">
+              <div class="axis">
+                <div>时间轴</div>
+                <div class="ticks" id="ticks"></div>
+              </div>
+              <div id="machines"></div>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="k">当前步骤</div><div class="v" id="statStep">准备</div></div>
+            <div class="stat"><div class="k">当前完工时间</div><div class="v" id="statMake">0</div></div>
+            <div class="stat"><div class="k">下界 LB ≈</div><div class="v" id="statLB">—</div></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="card-h">
+          <h2>步骤说明</h2>
+          <span>LPT = 长大先排 + 塞空闲机</span>
+        </div>
+        <div class="card-b">
+          <div class="step-box" id="narration">点击「播放」或「下一步」开始演示。</div>
+          <div class="log">
+            <table>
+              <thead>
+                <tr>
+                  <th>步骤</th>
+                  <th>作业</th>
+                  <th>机器</th>
+                  <th>负载</th>
+                </tr>
+              </thead>
+              <tbody id="logBody"></tbody>
+            </table>
+          </div>
+          <p class="hint">
+            规则：先按处理时间从大到小排序；再依次把作业分给当前累计负载最小的机器。
+            全部完成后，各机器负载的最大值即为近似完工时间（makespan）。
+          </p>
+        </div>
+      </aside>
+    </div>
+    <p class="footer-note">算法分析与设计 · 数字教材 5.8 多机调度问题 · 课件实例 {2,14,4,16,6,5,3}，m=3</p>
+  </div>
+
+<script>
+(function () {
+  const JOBS = [
+    { id: 1, time: 2 },
+    { id: 2, time: 14 },
+    { id: 3, time: 4 },
+    { id: 4, time: 16 },
+    { id: 5, time: 6 },
+    { id: 6, time: 5 },
+    { id: 7, time: 3 },
+  ];
+  const M = 3;
+  const COLORS = {
+    1: "#0d9488",
+    2: "#2563eb",
+    3: "#7c3aed",
+    4: "#dc2626",
+    5: "#ea580c",
+    6: "#ca8a04",
+    7: "#059669",
+  };
+
+  const sumT = JOBS.reduce((s, j) => s + j.time, 0);
+  const lb = Math.max(
+    Math.max(...JOBS.map(j => j.time)),
+    Math.ceil((sumT / M) * 100) / 100
+  );
+
+  // Precompute LPT steps
+  const sorted = [...JOBS].sort((a, b) => b.time - a.time || a.id - b.id);
+  const load = Array(M).fill(0);
+  const assign = Array.from({ length: M }, () => []);
+  const steps = [];
+
+  steps.push({
+    type: "init",
+    title: "初始化",
+    text: `共 ${JOBS.length} 个作业、${M} 台机器。总工时 Σtᵢ=${sumT}，下界 LB = max{最长作业, Σtᵢ/m} = max{16, ${(sumT / M).toFixed(2)}} ≈ ${lb}。先将作业按处理时间从大到小排序。`,
+    sortedIds: sorted.map(j => j.id),
+    highlight: null,
+    machine: null,
+    loads: load.slice(),
+    blocks: [],
+    log: [],
+  });
+
+  sorted.forEach((job, idx) => {
+    let best = 0;
+    for (let i = 1; i < M; i++) if (load[i] < load[best]) best = i;
+    const start = load[best];
+    const end = start + job.time;
+    load[best] = end;
+    assign[best].push({ id: job.id, time: job.time, start, end });
+
+    const blocks = [];
+    assign.forEach((list, mi) => {
+      list.forEach(b => blocks.push({ ...b, machine: mi }));
+    });
+
+    const log = sorted.slice(0, idx + 1).map((j, k) => {
+      // rebuild log from history
+      return steps[k + 1] ? steps[k + 1]._logRow : null;
+    }).filter(Boolean);
+
+    const row = {
+      step: idx + 1,
+      jobId: job.id,
+      time: job.time,
+      machine: best + 1,
+      loads: load.slice(),
+      makespan: Math.max(...load),
+    };
+
+    steps.push({
+      type: "assign",
+      title: `第 ${idx + 1} 步`,
+      text: `选择最长未分配作业 <strong>作业${job.id}</strong>（时长 ${job.time}）。当前各机器负载为 [${steps[steps.length - 1].loads.join(", ")}]，最空闲的是 <strong>M${best + 1}</strong>，因此分配到 M${best + 1}。分配后负载变为 [${load.join(", ")}]，当前完工时间 ${Math.max(...load)}。`,
+      sortedIds: sorted.map(j => j.id),
+      highlight: job.id,
+      machine: best,
+      loads: load.slice(),
+      blocks: blocks.map(b => ({ ...b })),
+      logRow: row,
+      _logRow: row,
+    });
+  });
+
+  // fix log arrays
+  const allLog = [];
+  steps.forEach((s, i) => {
+    if (s.logRow) allLog.push(s.logRow);
+    s.log = allLog.slice();
+    if (i === steps.length - 1 && s.type === "assign") {
+      s.text += ` <strong>全部作业分配完成，最终完工时间为 ${Math.max(...load)}。</strong>`;
+    }
+  });
+
+  const finalMake = Math.max(...load);
+  const maxTime = Math.max(finalMake, 18);
+
+  // DOM
+  const elQueue = document.getElementById("jobQueue");
+  const elMachines = document.getElementById("machines");
+  const elTicks = document.getElementById("ticks");
+  const elNarr = document.getElementById("narration");
+  const elLog = document.getElementById("logBody");
+  const elPos = document.getElementById("pos");
+  const elScrub = document.getElementById("scrub");
+  const elStatStep = document.getElementById("statStep");
+  const elStatMake = document.getElementById("statMake");
+  const elStatLB = document.getElementById("statLB");
+  const btnPlay = document.getElementById("btnPlay");
+  const btnPrev = document.getElementById("btnPrev");
+  const btnNext = document.getElementById("btnNext");
+  const btnReset = document.getElementById("btnReset");
+  const speedInput = document.getElementById("speed");
+
+  elStatLB.textContent = String(lb);
+  elScrub.max = String(steps.length - 1);
+
+  // ticks
+  for (let t = 0; t <= maxTime; t += 2) {
+    const d = document.createElement("div");
+    d.className = "tick";
+    d.style.left = (t / maxTime * 100) + "%";
+    d.textContent = t;
+    elTicks.appendChild(d);
+  }
+
+  // machine tracks
+  const tracks = [];
+  for (let i = 0; i < M; i++) {
+    const row = document.createElement("div");
+    row.className = "machine";
+    row.innerHTML = `<div class="machine-label">M${i + 1}<small id="loadLabel${i}">负载 0</small></div>`;
+    const track = document.createElement("div");
+    track.className = "track";
+    track.id = "track" + i;
+    row.appendChild(track);
+    elMachines.appendChild(row);
+    tracks.push(track);
+  }
+
+  let index = 0;
+  let playing = false;
+  let timer = null;
+
+  function render(i) {
+    index = i;
+    const s = steps[i];
+    elPos.textContent = `${i} / ${steps.length - 1}`;
+    elScrub.value = String(i);
+    elNarr.innerHTML = `<strong>${s.title}：</strong>${s.text}`;
+    elStatStep.textContent = s.type === "init" ? "排序准备" : `分配 ${s.log.length}/${sorted.length}`;
+    elStatMake.textContent = String(s.log.length ? Math.max(...s.loads) : 0);
+
+    // queue chips
+    elQueue.innerHTML = "";
+    const assigned = new Set(s.log.map(r => r.jobId));
+    s.sortedIds.forEach(id => {
+      const job = JOBS.find(j => j.id === id);
+      const chip = document.createElement("div");
+      chip.className = "job";
+      if (assigned.has(id)) {
+        chip.classList.add("done");
+        chip.style.background = COLORS[id];
+      } else if (s.highlight === id) {
+        chip.classList.add("current");
+      }
+      chip.innerHTML = `<b>J${id}</b><span>t=${job.time}</span>`;
+      elQueue.appendChild(chip);
+    });
+
+    // loads labels
+    for (let m = 0; m < M; m++) {
+      document.getElementById("loadLabel" + m).textContent = "负载 " + s.loads[m];
+    }
+
+    // gantt blocks
+    tracks.forEach(tr => { tr.innerHTML = ""; });
+    s.blocks.forEach(b => {
+      const div = document.createElement("div");
+      div.className = "block";
+      div.style.left = (b.start / maxTime * 100) + "%";
+      div.style.width = (b.time / maxTime * 100) + "%";
+      div.style.background = COLORS[b.id];
+      div.textContent = `J${b.id}(${b.time})`;
+      if (s.highlight === b.id) {
+        div.style.outline = "2px solid #fff";
+        div.style.boxShadow = "0 0 0 3px rgba(234,88,12,.45)";
+      }
+      tracks[b.machine].appendChild(div);
+    });
+
+    // makespan line
+    const mk = s.log.length ? Math.max(...s.loads) : 0;
+    if (mk > 0) {
+      tracks.forEach(tr => {
+        const line = document.createElement("div");
+        line.className = "makespan-line";
+        line.style.left = (mk / maxTime * 100) + "%";
+        if (tr === tracks[0]) {
+          const tag = document.createElement("div");
+          tag.className = "makespan-tag";
+          tag.textContent = "完工 " + mk;
+          line.appendChild(tag);
+        }
+        tr.appendChild(line);
+      });
+    }
+
+    // log
+    elLog.innerHTML = "";
+    s.log.forEach((row, ri) => {
+      const tr = document.createElement("tr");
+      if (ri === s.log.length - 1 && s.type === "assign") tr.classList.add("active");
+      else tr.classList.add("done");
+      tr.innerHTML = `<td>${row.step}</td><td>J${row.jobId} (${row.time})</td><td>M${row.machine}</td><td>[${row.loads.join(", ")}]</td>`;
+      elLog.appendChild(tr);
+    });
+
+    btnPrev.disabled = i <= 0;
+    btnNext.disabled = i >= steps.length - 1;
+  }
+
+  function stopPlay() {
+    playing = false;
+    btnPlay.textContent = "播放";
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+
+  function scheduleNext() {
+    if (!playing) return;
+    if (index >= steps.length - 1) { stopPlay(); return; }
+    const delay = 1100 / Number(speedInput.value);
+    timer = setTimeout(() => {
+      render(index + 1);
+      scheduleNext();
+    }, delay);
+  }
+
+  btnPlay.addEventListener("click", () => {
+    if (playing) { stopPlay(); return; }
+    if (index >= steps.length - 1) render(0);
+    playing = true;
+    btnPlay.textContent = "暂停";
+    scheduleNext();
+  });
+  btnNext.addEventListener("click", () => { stopPlay(); if (index < steps.length - 1) render(index + 1); });
+  btnPrev.addEventListener("click", () => { stopPlay(); if (index > 0) render(index - 1); });
+  btnReset.addEventListener("click", () => { stopPlay(); render(0); });
+  elScrub.addEventListener("input", () => { stopPlay(); render(Number(elScrub.value)); });
+  speedInput.addEventListener("input", () => {
+    if (playing) { clearTimeout(timer); scheduleNext(); }
+  });
+
+  render(0);
+})();
+</script>
+</body>
+</html>
