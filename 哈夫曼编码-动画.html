@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>哈夫曼编码 · 贪心算法动画</title>
+<style>
+  :root {
+    --ink: #142033;
+    --muted: #5c6b80;
+    --line: #dbe3ee;
+    --card: #ffffff;
+    --bg: #e8eef6;
+    --teal: #0f766e;
+    --amber: #c2410c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(1100px 420px at 8% -8%, #ccfbf1 0%, transparent 55%),
+      radial-gradient(900px 360px at 100% 0%, #dbeafe 0%, transparent 50%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px;
+    padding: 14px 20px 12px; color: #fff;
+    background: linear-gradient(115deg, #0f2744 0%, #134e4a 60%, #0f766e 100%);
+  }
+  header h1 { margin: 0; font-size: 21px; font-weight: 720; }
+  header p { margin: 3px 0 0; color: rgba(255,255,255,.78); font-size: 13px; }
+  .brand { margin-right: auto; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  button {
+    height: 36px; padding: 0 14px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.35); background: transparent;
+    color: #fff; font: inherit; cursor: pointer;
+  }
+  button:hover { background: rgba(255,255,255,.12); }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary {
+    background: #ecfdf5; color: #115e59; border-color: #ecfdf5;
+    font-weight: 700; min-width: 74px;
+  }
+  .speed { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,.88); font-size: 13px; }
+  .speed input { width: 100px; accent-color: #5eead4; }
+  .pos { min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; color: rgba(255,255,255,.9); font-size: 13px; }
+  .sticky-top { position: sticky; top: 0; z-index: 20; background: #e8eef6; }
+  .scrub-row { display: flex; align-items: center; gap: 10px; padding: 8px 20px 0; }
+  .scrub-row input { flex: 1; accent-color: #0f766e; }
+  .page { padding: 10px 16px 22px; }
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(300px, .7fr);
+    gap: 14px;
+  }
+  @media (max-width: 980px) { .stage { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; box-shadow: 0 10px 28px rgba(15,35,60,.06);
+  }
+  .card-h {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 10px; padding: 12px 14px 8px; border-bottom: 1px solid var(--line);
+  }
+  .card-h h2 { margin: 0; font-size: 15px; }
+  .card-h span { color: var(--muted); font-size: 12px; }
+  .card-b { padding: 12px 14px 14px; }
+  .heap-row { display: flex; flex-wrap: wrap; gap: 8px; min-height: 56px; align-items: center; }
+  .chip {
+    min-width: 58px; padding: 8px 10px; border-radius: 12px;
+    border: 1px solid #cbd5e1; background: #f8fafc;
+    text-align: center; font-size: 12px; font-weight: 650;
+    transition: transform .25s, box-shadow .25s, opacity .25s;
+  }
+  .chip b { display: block; font-size: 15px; }
+  .chip.pick {
+    border-color: #ea580c; background: #fff7ed;
+    box-shadow: 0 0 0 3px rgba(234,88,12,.2);
+    transform: translateY(-2px) scale(1.04);
+  }
+  .chip.merge {
+    border-color: #0f766e; background: #ecfdf5;
+    box-shadow: 0 0 0 3px rgba(15,118,110,.18);
+  }
+  .chip.gone { opacity: .25; filter: grayscale(.4); }
+  .tree-wrap {
+    margin-top: 12px; overflow: auto;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: linear-gradient(#f8fafc, #fff);
+    min-height: 460px;
+  }
+  #treeSvg {
+    display: block;
+    width: 100%;
+    min-height: 440px;
+    height: 440px;
+  }
+  .node-leaf { fill: #ecfdf5; stroke: #0f766e; stroke-width: 2.5; }
+  .node-inner { fill: #eff6ff; stroke: #0369a1; stroke-width: 2.5; }
+  .node-hot { fill: #fff7ed; stroke: #ea580c; stroke-width: 3.5; }
+  .edge { stroke: #64748b; stroke-width: 2.2; }
+  .edge-label {
+    fill: #0f172a; font-size: 14px; font-weight: 800;
+    paint-order: stroke; stroke: #fff; stroke-width: 3px;
+  }
+  .node-text { fill: #0f172a; font-size: 16px; font-weight: 800; text-anchor: middle; }
+  .node-sub { fill: #334155; font-size: 13px; font-weight: 650; text-anchor: middle; }
+  .forest-caption {
+    fill: #64748b; font-size: 13px; font-weight: 600;
+  }
+  .codes { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  .codes th, .codes td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  .codes th { color: var(--muted); font-weight: 650; background: #f8fafc; }
+  .codes code {
+    font-family: Consolas, Monaco, monospace;
+    background: #ecfdf5; color: #115e59;
+    padding: 2px 8px; border-radius: 999px; font-weight: 700;
+  }
+  .step-box {
+    background: #ecfdf5; border: 1px solid #99f6e4;
+    border-radius: 12px; padding: 12px 14px;
+    min-height: 92px; line-height: 1.55; font-size: 14px;
+  }
+  .step-box strong { color: #0f766e; }
+  .log {
+    margin-top: 12px; max-height: 260px; overflow: auto;
+    border: 1px solid var(--line); border-radius: 12px;
+  }
+  .log table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .log th, .log td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  .log th { background: #f8fafc; color: var(--muted); position: sticky; top: 0; }
+  .log tr.active { background: #ecfdf5; }
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px;
+  }
+  .stat {
+    background: #f8fafc; border: 1px solid var(--line);
+    border-radius: 12px; padding: 10px 12px;
+  }
+  .stat .k { color: var(--muted); font-size: 12px; }
+  .stat .v { font-size: 18px; font-weight: 750; margin-top: 2px; }
+  .hint { margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .footer-note { margin-top: 12px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="sticky-top">
+    <header>
+      <div class="brand">
+        <h1>哈夫曼编码 · 贪心算法动画</h1>
+        <p>每次合并频率最小的两棵树 · 左 0 右 1 · 教材实例逐步演示</p>
+      </div>
+      <div class="controls">
+        <button id="btnReset" type="button">重置</button>
+        <button id="btnPrev" type="button">上一步</button>
+        <button id="btnPlay" class="primary" type="button">播放</button>
+        <button id="btnNext" type="button">下一步</button>
+        <label class="speed">速度 <input id="speed" type="range" min="0.4" max="2.2" step="0.1" value="1" /></label>
+        <div class="pos" id="pos">0 / 0</div>
+      </div>
+    </header>
+    <div class="scrub-row"><input id="scrub" type="range" min="0" max="0" value="0" /></div>
+  </div>
+
+  <div class="page">
+    <div class="stage">
+      <section class="card">
+        <div class="card-h">
+          <h2>最小堆与哈夫曼树</h2>
+          <span>A~F · 频率 5,9,12,13,16,45</span>
+        </div>
+        <div class="card-b">
+          <div style="margin-bottom:8px;font-size:13px;color:var(--muted);">当前堆中的树（按频率从小到大展示）</div>
+          <div class="heap-row" id="heapRow"></div>
+
+          <div class="tree-wrap">
+            <svg id="treeSvg" viewBox="0 0 900 440" preserveAspectRatio="xMidYMid meet" role="img" aria-label="哈夫曼树"></svg>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="k">当前步骤</div><div class="v" id="statStep">准备</div></div>
+            <div class="stat"><div class="k">堆中树棵数</div><div class="v" id="statHeap">6</div></div>
+            <div class="stat"><div class="k">加权路径长 WPL</div><div class="v" id="statWpl">—</div></div>
+          </div>
+
+          <table class="codes">
+            <thead>
+              <tr><th>字符</th><th>频率</th><th>编码</th><th>码长</th></tr>
+            </thead>
+            <tbody id="codeBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="card-h">
+          <h2>步骤说明</h2>
+          <span>贪心：总是合并当前最轻的两棵</span>
+        </div>
+        <div class="card-b">
+          <div class="step-box" id="narration">点击「播放」或「下一步」开始演示。</div>
+          <div class="log">
+            <table>
+              <thead><tr><th>步</th><th>合并</th><th>新频率</th></tr></thead>
+              <tbody id="logBody"></tbody>
+            </table>
+          </div>
+          <p class="hint">
+            规则：字符做成叶子入最小堆；每次弹出频率最小的两个结点合并成新树，再压回堆；最后从根到叶，左分支记 0、右分支记 1，得到各字符编码。
+          </p>
+        </div>
+      </aside>
+    </div>
+    <p class="footer-note">算法分析与设计 · 数字教材 · 哈夫曼编码贪心演示</p>
+  </div>
+
+<script>
+(function () {
+  const DATA = [
+    { ch: "A", freq: 5 },
+    { ch: "B", freq: 9 },
+    { ch: "C", freq: 12 },
+    { ch: "D", freq: 13 },
+    { ch: "E", freq: 16 },
+    { ch: "F", freq: 45 },
+  ];
+
+  let uid = 0;
+  function makeNode(ch, freq, left, right) {
+    return {
+      id: "n" + (++uid),
+      ch,
+      freq,
+      left: left || null,
+      right: right || null,
+      label: ch ? ch : ("T" + uid),
+    };
+  }
+
+  function cloneTree(n) {
+    if (!n) return null;
+    return {
+      id: n.id,
+      ch: n.ch,
+      freq: n.freq,
+      label: n.label,
+      left: cloneTree(n.left),
+      right: cloneTree(n.right),
+    };
+  }
+
+  function layout(root, opts) {
+    const leafGap = (opts && opts.leafGap) || 110;
+    const levelGap = (opts && opts.levelGap) || 100;
+    const top = (opts && opts.top) || 56;
+    const nodes = [];
+    const edges = [];
+    if (!root) return { nodes, edges, w: 120, h: 120 };
+
+    let leafIndex = 0;
+    function place2(n, depth) {
+      if (!n) return null;
+      const ly = place2(n.left, depth + 1);
+      const ry = place2(n.right, depth + 1);
+      let x;
+      if (ly == null && ry == null) {
+        x = leafIndex * leafGap;
+        leafIndex++;
+      } else if (ly == null) x = ry;
+      else if (ry == null) x = ly;
+      else x = (ly + ry) / 2;
+      n._x = x;
+      n._y = top + depth * levelGap;
+      return x;
+    }
+    place2(root, 0);
+    function collect(n) {
+      if (!n) return;
+      nodes.push(n);
+      if (n.left) {
+        edges.push({ bit: "0", fx: n._x, fy: n._y, tx: n.left._x, ty: n.left._y });
+        collect(n.left);
+      }
+      if (n.right) {
+        edges.push({ bit: "1", fx: n._x, fy: n._y, tx: n.right._x, ty: n.right._y });
+        collect(n.right);
+      }
+    }
+    collect(root);
+    const minX = Math.min(...nodes.map(n => n._x));
+    const maxX = Math.max(...nodes.map(n => n._x));
+    const maxY = Math.max(...nodes.map(n => n._y));
+    // normalize to start near 0
+    nodes.forEach(n => { n._x -= minX; });
+    edges.forEach(e => { e.fx -= minX; e.tx -= minX; });
+    return { nodes, edges, w: (maxX - minX) + 1, h: maxY + 70 };
+  }
+
+  function codesOf(root) {
+    const map = {};
+    function dfs(n, code) {
+      if (!n) return;
+      if (!n.left && !n.right) {
+        if (n.ch) map[n.ch] = code || "0";
+        return;
+      }
+      dfs(n.left, code + "0");
+      dfs(n.right, code + "1");
+    }
+    dfs(root, "");
+    return map;
+  }
+
+  // Build steps
+  const heap = DATA.map(d => makeNode(d.ch, d.freq));
+  const steps = [];
+
+  function snapshotHeap(arr) {
+    return arr
+      .map(n => ({ id: n.id, ch: n.ch, freq: n.freq, label: n.ch || ("内部" + n.freq), tree: cloneTree(n) }))
+      .sort((a, b) => a.freq - b.freq || String(a.label).localeCompare(String(b.label)));
+  }
+
+  steps.push({
+    title: "初始化",
+    text: "把每个字符做成叶子结点，按频率放入最小堆。当前堆中有 6 棵树。贪心规则：每次取出频率最小的两棵树合并。",
+    heap: snapshotHeap(heap),
+    pick: [],
+    forestRoot: null, // show largest / progressive: show all as forest of roots - for init draw separate leaves via fake forest
+    forest: heap.map(cloneTree),
+    codes: {},
+    log: [],
+    wpl: null,
+  });
+
+  const log = [];
+  while (heap.length > 1) {
+    heap.sort((a, b) => a.freq - b.freq);
+    const left = heap.shift();
+    const right = heap.shift();
+    const beforePick = snapshotHeap([left, right, ...heap]);
+    // intermediate: highlight pick
+    steps.push({
+      title: `选择最小两棵`,
+      text: `从堆中选出频率最小的两棵：<strong>${left.ch || ("内部结点")}</strong>(${left.freq}) 与 <strong>${right.ch || ("内部结点")}</strong>(${right.freq})，准备合并。`,
+      heap: snapshotHeap([left, right, ...heap]),
+      pick: [left.id, right.id],
+      forest: [left, right, ...heap].map(cloneTree),
+      codes: {},
+      log: log.slice(),
+      wpl: null,
+      phase: "pick",
+    });
+
+    const merged = makeNode(null, left.freq + right.freq, left, right);
+    merged.label = String(merged.freq);
+    heap.push(merged);
+    log.push({
+      step: log.length + 1,
+      a: left.ch ? left.ch : `内部(${left.freq})`,
+      b: right.ch ? right.ch : `内部(${right.freq})`,
+      freq: merged.freq,
+    });
+
+    const codes = heap.length === 1 ? codesOf(heap[0]) : {};
+    let wpl = null;
+    if (heap.length === 1) {
+      wpl = DATA.reduce((s, d) => s + d.freq * (codes[d.ch] || "").length, 0);
+    }
+
+    steps.push({
+      title: `合并得到 ${merged.freq}`,
+      text: `合并为新结点，频率 = ${left.freq}+${right.freq}=<strong>${merged.freq}</strong>，再放回堆。` +
+        (heap.length === 1
+          ? ` 堆中只剩一棵树，哈夫曼树构建完成。从根到叶：左分支记 <strong>0</strong>，右分支记 <strong>1</strong>，得到各字符编码。`
+          : ` 当前堆中还有 <strong>${heap.length}</strong> 棵树。`),
+      heap: snapshotHeap(heap),
+      pick: [merged.id],
+      forest: heap.map(cloneTree),
+      codes,
+      log: log.slice(),
+      wpl,
+      phase: "merge",
+      hotId: merged.id,
+    });
+  }
+
+  // DOM
+  const elHeap = document.getElementById("heapRow");
+  const elSvg = document.getElementById("treeSvg");
+  const elNarr = document.getElementById("narration");
+  const elLog = document.getElementById("logBody");
+  const elCode = document.getElementById("codeBody");
+  const elPos = document.getElementById("pos");
+  const elScrub = document.getElementById("scrub");
+  const elStatStep = document.getElementById("statStep");
+  const elStatHeap = document.getElementById("statHeap");
+  const elStatWpl = document.getElementById("statWpl");
+  const btnPlay = document.getElementById("btnPlay");
+  const btnPrev = document.getElementById("btnPrev");
+  const btnNext = document.getElementById("btnNext");
+  const btnReset = document.getElementById("btnReset");
+  const speedInput = document.getElementById("speed");
+
+  elScrub.max = String(steps.length - 1);
+
+  function treeDepth(n) {
+    if (!n) return 0;
+    return 1 + Math.max(treeDepth(n.left), treeDepth(n.right));
+  }
+
+  function drawForest(forest, hotIds) {
+    const hot = new Set(hotIds || []);
+    const R = 30; // node radius — keep large for classroom projection
+    if (!forest || !forest.length) {
+      elSvg.setAttribute("viewBox", "0 0 900 440");
+      elSvg.innerHTML = `<text x="40" y="220" class="forest-caption" font-size="18">暂无树结构</text>`;
+      return;
+    }
+
+    // Single final tree: draw big and centered
+    const single = forest.length === 1;
+    const leafGap = single ? 120 : 100;
+    const levelGap = single ? 110 : 95;
+    const treeGap = 48; // gap between separate trees in the forest
+
+    let offsetX = 50;
+    const allNodes = [];
+    const allEdges = [];
+    let maxH = 160;
+
+    forest.forEach((root) => {
+      const L = layout(cloneTree(root), { leafGap, levelGap, top: 70 });
+      // center each small tree's own content, then place with gap
+      L.nodes.forEach(n => {
+        n._x += offsetX;
+        allNodes.push(n);
+      });
+      L.edges.forEach(e => {
+        allEdges.push({ ...e, fx: e.fx + offsetX, tx: e.tx + offsetX });
+      });
+      offsetX += L.w + treeGap + R * 2;
+      maxH = Math.max(maxH, L.h + 40);
+    });
+
+    const maxX = Math.max(...allNodes.map(n => n._x));
+    const width = Math.max(900, maxX + R + 60);
+    const height = Math.max(440, maxH + 50);
+    elSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    elSvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+    let html = `<text class="forest-caption" x="24" y="28">树的形成过程（结点越大越清晰；高亮为当前选中/新合并结点）</text>`;
+
+    allEdges.forEach(e => {
+      html += `<line class="edge" x1="${e.fx}" y1="${e.fy}" x2="${e.tx}" y2="${e.ty}" />`;
+      const mx = (e.fx + e.tx) / 2;
+      const my = (e.fy + e.ty) / 2;
+      const dx = e.bit === "0" ? -14 : 14;
+      html += `<text class="edge-label" x="${mx + dx}" y="${my - 2}">${e.bit}</text>`;
+    });
+
+    allNodes.forEach(n => {
+      const leaf = !n.left && !n.right;
+      const cls = hot.has(n.id) ? "node-hot" : (leaf ? "node-leaf" : "node-inner");
+      html += `<circle class="${cls}" cx="${n._x}" cy="${n._y}" r="${R}" />`;
+      const title = n.ch ? n.ch : n.freq;
+      html += `<text class="node-text" x="${n._x}" y="${n._y + 6}">${title}</text>`;
+      html += `<text class="node-sub" x="${n._x}" y="${n._y + R + 18}">${n.ch ? "f=" : "Σ="}${n.freq}</text>`;
+    });
+    elSvg.innerHTML = html;
+  }
+
+  let index = 0;
+  let playing = false;
+  let timer = null;
+
+  function render(i) {
+    index = i;
+    const s = steps[i];
+    elPos.textContent = `${i} / ${steps.length - 1}`;
+    elScrub.value = String(i);
+    elNarr.innerHTML = `<strong>${s.title}：</strong>${s.text}`;
+    elStatStep.textContent = s.title;
+    elStatHeap.textContent = String(s.heap.length);
+    elStatWpl.textContent = s.wpl == null ? "—" : String(s.wpl);
+
+    // heap chips
+    elHeap.innerHTML = "";
+    s.heap.forEach(item => {
+      const d = document.createElement("div");
+      d.className = "chip";
+      if (s.pick && s.pick.includes(item.id)) {
+        d.classList.add(s.phase === "merge" ? "merge" : "pick");
+      }
+      const name = item.ch ? item.ch : "内部";
+      d.innerHTML = `<b>${name}</b><span>f=${item.freq}</span>`;
+      elHeap.appendChild(d);
+    });
+
+    drawForest(s.forest, s.pick);
+
+    // codes
+    elCode.innerHTML = "";
+    DATA.forEach(d => {
+      const code = s.codes[d.ch] || "";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${d.ch}</td><td>${d.freq}</td><td>${code ? `<code>${code}</code>` : "—"}</td><td>${code ? code.length : "—"}</td>`;
+      elCode.appendChild(tr);
+    });
+
+    // log
+    elLog.innerHTML = "";
+    s.log.forEach((row, ri) => {
+      const tr = document.createElement("tr");
+      if (ri === s.log.length - 1) tr.classList.add("active");
+      tr.innerHTML = `<td>${row.step}</td><td>${row.a} + ${row.b}</td><td>${row.freq}</td>`;
+      elLog.appendChild(tr);
+    });
+
+    btnPrev.disabled = i <= 0;
+    btnNext.disabled = i >= steps.length - 1;
+  }
+
+  function stopPlay() {
+    playing = false;
+    btnPlay.textContent = "播放";
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+  function scheduleNext() {
+    if (!playing) return;
+    if (index >= steps.length - 1) { stopPlay(); return; }
+    const delay = 1200 / Number(speedInput.value);
+    timer = setTimeout(() => { render(index + 1); scheduleNext(); }, delay);
+  }
+
+  btnPlay.addEventListener("click", () => {
+    if (playing) { stopPlay(); return; }
+    if (index >= steps.length - 1) render(0);
+    playing = true;
+    btnPlay.textContent = "暂停";
+    scheduleNext();
+  });
+  btnNext.addEventListener("click", () => { stopPlay(); if (index < steps.length - 1) render(index + 1); });
+  btnPrev.addEventListener("click", () => { stopPlay(); if (index > 0) render(index - 1); });
+  btnReset.addEventListener("click", () => { stopPlay(); render(0); });
+  elScrub.addEventListener("input", () => { stopPlay(); render(Number(elScrub.value)); });
+  speedInput.addEventListener("input", () => { if (playing) { clearTimeout(timer); scheduleNext(); } });
+
+  render(0);
+})();
+</script>
+</body>
+</html>
